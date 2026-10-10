@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meeting Check-in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+/* ===================== ตั้งค่า (แก้ตรงนี้ที่เดียว) ===================== */
+const CONFIG = {
+  // วาง URL ของ Google Apps Script Web App (ลงท้ายด้วย /exec) ดูวิธีใน README.md
+  API_URL: "",
+  // ค่าตั้งต้นของฟอร์มสร้างการประชุม
+  DEFAULT_OPEN: "13:00",   // เปิดให้สแกน
+  DEFAULT_LATE: "14:00",   // เช็คอินหลังเวลานี้ = สาย
+  DEFAULT_CLOSE: "15:30",  // ปิดรับสแกน
+  // ส่วนงานตั้งต้น ใช้เฉพาะโหมดทดลอง (เมื่อต่อ Google Sheet แล้ว ส่วนงานจริงอยู่ในชีต Departments)
+  DEMO_DEPARTMENTS: ["CPS", "Production", "Quality", "Maintenance", "Engineering", "Logistics", "HR", "IT", "Safety", "Purchasing", "Finance"]
+};
+</script>
+<style>
+  :root{
+    --ink:#12213a; --muted:#5d6b82; --line:#dfe5ee; --bg:#f3f6fa; --card:#ffffff; --soft:#eef2f8;
+    --brand:#0b3d91; --brand-2:#092f70; --brand-bg:#e8eefb;
+    --ok:#12805c; --ok-bg:#e3f5ee; --warn:#b45309; --warn-bg:#fdf0dc; --bad:#b42318; --bad-bg:#fdecea; --none-bg:#eef1f5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Sarabun",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.5}
+  header.bar{background:var(--brand);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:18px}
+  header.bar h1{font-size:18px;margin:0;font-weight:600;flex:1}
+  header.bar a{color:#fff;text-decoration:none;font-size:14px;opacity:.9}
+  main{max-width:1140px;margin:0 auto;padding:20px 16px 60px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+  h2{font-size:20px;margin:0 0 14px}
+  h3{font-size:16px;margin:0}
+  label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
+  input,select,textarea{width:100%;padding:12px;border:1px solid #c5cedb;border-radius:10px;font:inherit;background:#fff;color:var(--ink)}
+  select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 20px) 50%,calc(100% - 14px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:36px}
+  textarea{min-height:110px;resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--brand);outline-offset:1px}
+  button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:12px 18px;cursor:pointer;background:var(--brand);color:#fff}
+  button:hover{background:var(--brand-2)}
+  button.ghost{background:#fff;color:var(--brand);border:1px solid #c5cedb}
+  button.ghost:hover{background:var(--soft)}
+  button.danger{background:#fff;color:var(--bad);border:1px solid #e6c2be}
+  button.small{padding:6px 12px;font-size:14px}
+  button.link{background:none;color:var(--brand);padding:0;border:0;text-decoration:underline;font-weight:500}
+  button:disabled{opacity:.6;cursor:default}
+  .row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .row3 input{padding:10px 6px;min-width:0;font-size:15px}
+  .muted{color:var(--muted);font-size:14px}
+  .banner{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:10px 14px;font-size:14px;margin-bottom:16px}
+  .err{color:var(--bad);font-size:14px;margin-top:10px}
+  .hidden{display:none !important}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+  .pill.ok{background:var(--ok-bg);color:var(--ok)}
+  .pill.late{background:var(--warn-bg);color:var(--warn)}
+  .pill.none{background:var(--none-bg);color:var(--muted)}
+  .pill.new{background:var(--brand-bg);color:var(--brand)}
+  .pill.live{background:var(--ok);color:#fff}
+  .tablewrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:15px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{font-size:13px;color:var(--muted);font-weight:600}
+  .pinbox{max-width:360px;margin:40px auto}
+
+  /* ตารางการประชุม */
+  .grid2{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #c5cedb;border-radius:999px;padding:5px 12px;font-size:14px;cursor:pointer;user-select:none;margin:0;font-weight:500}
+  .chip input{width:auto;margin:0;padding:0}
+  .chip.on{background:var(--brand-bg);border-color:var(--brand);color:var(--brand)}
+  .labelrow{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .labelrow label{margin-bottom:0}
+  .sched td.when{white-space:nowrap}
+  .sched .t{font-weight:600}
+  .sched .acts{white-space:nowrap;text-align:right}
+  .sched .acts button{margin-left:4px}
+  .sched tr.past td{color:var(--muted)}
+  .sched tr.past .t{color:var(--ink)}
+  .secthead{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:14px 8px 6px;border-bottom:1px solid var(--line)}
+  .att{font-weight:600;white-space:nowrap}
+
+  /* แดชบอร์ด */
+  .dash{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+  .qrbox{text-align:center}
+  .qrbox img{width:100%;max-width:300px;height:auto;image-rendering:pixelated;border:1px solid var(--line);border-radius:10px}
+  .countdown{margin:10px auto 0;max-width:300px}
+  .countdown .track{height:6px;background:#dbe2ec;border-radius:3px;overflow:hidden}
+  .countdown .track i{display:block;height:100%;background:var(--brand);transition:width .25s linear}
+  .countdown .txt{font-size:14px;color:var(--muted);margin-top:4px}
+  .closedbox{padding:36px 16px;border:1px dashed #c5cedb;border-radius:12px;color:var(--muted);font-weight:600;margin-top:14px}
+  .window{font-size:14px;margin-top:8px;color:var(--muted)}
+  .stat{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .stat b{font-size:44px;line-height:1;color:var(--brand)}
+  .stat .of{font-size:22px;color:var(--muted);font-weight:600}
+  .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0}
+  .tabs{display:inline-flex;background:var(--soft);border-radius:10px;padding:3px}
+  .tabs button{background:none;color:var(--muted);padding:7px 14px;font-size:14px;border-radius:8px}
+  .tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .tools select{width:auto;padding:8px 36px 8px 12px;font-size:14px}
+  .tools .sp{flex:1}
+  .deptsec{margin-bottom:18px}
+  .depthead{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--soft);border-radius:8px}
+  .depthead h3{flex:1}
+  .bar2{height:6px;background:#dbe2ec;border-radius:3px;overflow:hidden;width:90px}
+  .bar2 i{display:block;height:100%;background:var(--ok)}
+  #dCheck table{table-layout:fixed}
+  #dCheck td:nth-child(1){width:36px} #dCheck td:nth-child(3){width:100px} #dCheck td:nth-child(4){width:110px;text-align:right}
+  .mark{text-align:center;font-weight:700}
+  .mark.y{color:var(--ok)} .mark.n{color:#b8c2d1}
+
+  /* โหมดฉายจอ */
+  #present{position:fixed;inset:0;background:#fff;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+  #present h2{font-size:clamp(24px,4vw,44px);margin-bottom:4px}
+  #present img{width:min(58vh,80vw);height:auto;image-rendering:pixelated;margin:14px 0 6px}
+  #present .countdown{max-width:min(58vh,80vw);width:100%}
+  #present .count{font-size:clamp(18px,2.6vw,28px);margin-top:14px}
+  #present .close{position:absolute;top:16px;right:16px}
+
+  /* หน้าผู้เข้าร่วม */
+  .attend{max-width:460px;margin:0 auto}
+  .meeting-head{background:var(--brand);color:#fff;border-radius:14px;padding:18px 20px;margin-bottom:16px}
+  .meeting-head .t{font-size:20px;font-weight:700}
+  .meeting-head .s{opacity:.9;font-size:14px;margin-top:2px}
+  .attend button.big{width:100%;padding:16px;font-size:18px;margin-top:20px}
+  .hint{font-size:13px;color:var(--muted);margin-top:4px}
+  .results{margin-top:6px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .results:empty{display:none}
+  .res{display:flex;width:100%;align-items:center;gap:10px;background:#fff;color:var(--ink);border-radius:0;border-bottom:1px solid var(--line);padding:12px 14px;text-align:left;font-weight:500}
+  .res:last-child{border-bottom:0}
+  .res:hover{background:var(--soft)}
+  .res .nm{flex:1}
+  .res .dp{font-size:13px;color:var(--muted)}
+  .res:disabled{opacity:1;background:#fafbfc;color:var(--muted)}
+  .res mark{background:#fff1b8;color:inherit;border-radius:3px;padding:0 1px}
+  .noresult{padding:12px 14px;color:var(--muted);font-size:14px}
+  .picked{display:flex;align-items:center;gap:10px;background:var(--brand-bg);border:1px solid var(--brand);border-radius:10px;padding:12px 14px;margin-top:6px}
+  .picked .nm{flex:1;font-weight:700}
+  .newbox{margin-top:14px;padding:14px;background:var(--soft);border-radius:10px}
+  .newbox label:first-child{margin-top:0}
+  .done{text-align:center;padding:30px 20px}
+  .done .tick{width:84px;height:84px;border-radius:50%;background:var(--ok);color:#fff;font-size:48px;line-height:84px;margin:0 auto 14px}
+  .done .time{font-size:34px;font-weight:700;margin:6px 0}
+  .done .note{margin-top:14px;font-size:14px;color:var(--brand);background:var(--brand-bg);border-radius:10px;padding:8px 12px}
+  .stop{text-align:center;padding:30px 20px}
+  .stop .icon{width:72px;height:72px;border-radius:50%;background:var(--warn-bg);color:var(--warn);font-size:38px;line-height:72px;margin:0 auto 12px;font-weight:700}
+
+  /* จัดการรายชื่อ */
+  .admin{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+  .deptbtn{display:flex;width:100%;justify-content:space-between;align-items:center;background:none;color:var(--ink);border-radius:8px;padding:10px 12px;font-weight:500;text-align:left}
+  .deptbtn:hover{background:var(--soft)}
+  .deptbtn.on{background:var(--brand-bg);color:var(--brand);font-weight:700}
+  .deptbtn .n{font-size:13px;color:var(--muted);font-weight:500}
+  .inline{display:flex;gap:8px;margin-top:12px}
+  .inline input{padding:10px}
+  .inline button{white-space:nowrap;padding:10px 14px}
+  .mrow{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .mrow .nm{flex:1;min-width:0}
+
+  @media (max-width:860px){ .grid2,.dash,.admin{grid-template-columns:1fr} }
+  @media (max-width:420px){ .row3{grid-template-columns:1fr 1fr} }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <h1>Meeting Check-in</h1>
+  <a href="./" id="homeLink" class="hidden">ตารางการประชุม</a>
+  <a href="./?admin=1" id="adminLink" class="hidden">จัดการรายชื่อ</a>
+</header>
+
+<main>
+  <div id="demoBanner" class="banner hidden">โหมดทดลอง: ยังไม่ได้ตั้งค่า API_URL ข้อมูลเก็บเฉพาะในเครื่องนี้ มือถือเครื่องอื่นจะส่งข้อมูลเข้ามาไม่ได้ (PIN ทดลอง: 1234)</div>
+
+  <!-- ============ PIN ผู้จัด ============ -->
+  <div class="card pinbox hidden" id="pinBox">
+    <h2 id="pinTitle">สำหรับผู้จัดการประชุม</h2>
+    <form id="pinForm">
+      <label for="pinInput">รหัสผู้จัด (PIN)</label>
+      <input id="pinInput" type="password" inputmode="numeric" autocomplete="off" required>
+      <button type="submit" style="width:100%;margin-top:14px">เข้าสู่ระบบ</button>
+      <div class="err hidden" id="pinErr"></div>
+    </form>
+  </div>
+
+  <!-- ============ ตารางการประชุม ============ -->
+  <section id="viewHome" class="hidden">
+    <div class="grid2">
+      <div class="card">
+        <h2>สร้างการประชุม</h2>
+        <form id="createForm">
+          <label for="fTitle">ชื่อการประชุม</label>
+          <input id="fTitle" required maxlength="80" placeholder="เช่น CPS Monthly Meeting">
+          <label for="fDate">วันที่</label>
+          <input id="fDate" type="date" required>
+          <div class="row3">
+            <div><label for="fOpen">เปิดสแกน</label><input id="fOpen" type="time" required></div>
+            <div><label for="fLate">สายหลัง</label><input id="fLate" type="time"></div>
+            <div><label for="fClose">ปิดสแกน</label><input id="fClose" type="time" required></div>
+          </div>
+          <div class="hint">QR สแกนได้เฉพาะช่วงเปิด–ปิดของวันที่กำหนด เช็คอินหลังเวลา "สายหลัง" นับเป็นสาย</div>
+          <label for="fRoom">ห้อง / สถานที่</label>
+          <input id="fRoom" maxlength="60" placeholder="เช่น Meeting Room 2">
+          <div class="labelrow" style="margin-top:12px">
+            <label>ส่วนงานที่ต้องเข้าประชุม</label>
+            <span class="muted"><button type="button" class="link" id="selAll">ทั้งหมด</button> · <button type="button" class="link" id="selNone">ล้าง</button></span>
+          </div>
+          <div class="chips" id="fDepts"><span class="muted">กำลังโหลด...</span></div>
+          <div class="err hidden" id="fErr"></div>
+          <button type="submit" id="fSubmit" style="width:100%;margin-top:18px">สร้างการประชุม</button>
+        </form>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <h2 style="flex:1;margin:0">ตารางการประชุม</h2>
+          <button class="ghost small" id="schedRefresh" type="button">รีเฟรช</button>
+        </div>
+        <div class="muted">กด "เปิด" เพื่อฉาย QR หรือดูรายชื่อผู้เข้าประชุมของแต่ละรอบ</div>
+        <div class="tablewrap"><table class="sched"><tbody id="schedBody"></tbody></table></div>
+        <div class="err hidden" id="schedErr"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ จัดการรายชื่อ ============ -->
+  <section id="viewAdmin" class="hidden">
+    <div class="admin">
+      <div class="card">
+        <h2>ส่วนงาน</h2>
+        <div id="deptList"></div>
+        <form class="inline" id="addDeptForm">
+          <input id="newDept" maxlength="60" placeholder="เพิ่มส่วนงาน" required>
+          <button type="submit">เพิ่ม</button>
+        </form>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <h2 style="flex:1;margin:0" id="adTitle"></h2>
+          <button class="danger small" id="delDeptBtn" type="button">ลบส่วนงาน</button>
+        </div>
+        <div class="muted" id="adCount"></div>
+        <form id="addNamesForm">
+          <label for="newNames">เพิ่มรายชื่อผู้ต้องเข้าประชุม (หนึ่งชื่อต่อบรรทัด วางจาก Excel ได้)</label>
+          <textarea id="newNames" placeholder="สมชาย ใจดี&#10;สมหญิง รักงาน"></textarea>
+          <button type="submit" style="margin-top:10px">เพิ่มรายชื่อ</button>
+        </form>
+        <div id="memberList" style="margin-top:18px"></div>
+      </div>
+    </div>
+    <div class="err hidden" id="adminErr"></div>
+  </section>
+
+  <!-- ============ แดชบอร์ดการประชุม ============ -->
+  <section id="viewDash" class="hidden">
+    <div class="dash">
+      <div class="card qrbox">
+        <h2 id="dTitle"></h2>
+        <div class="muted" id="dSub"></div>
+        <div class="window" id="dWindow"></div>
+        <div id="dQrWrap">
+          <div id="dQr" style="margin-top:14px"></div>
+          <div class="countdown"><div class="track"><i id="dBar"></i></div><div class="txt" id="dCd"></div></div>
+          <button id="presentBtn" type="button" style="width:100%;margin-top:14px">ฉาย QR เต็มจอ</button>
+        </div>
+        <div class="closedbox hidden" id="dClosed"></div>
+        <div class="err hidden" id="dErr"></div>
+      </div>
+      <div class="card">
+        <div class="stat"><b id="dCount">0</b><span class="of" id="dOf"></span><span>คนเช็คอินแล้ว</span><span class="muted" id="dLate"></span></div>
+        <div class="muted" id="dUpdated"></div>
+        <div class="tools">
+          <div class="tabs" role="tablist">
+            <button type="button" class="on" data-tab="check">เช็คลิสต์ตามส่วนงาน</button>
+            <button type="button" data-tab="time">ลำดับเวลา</button>
+          </div>
+          <select id="dFilter" aria-label="ตัวกรอง">
+            <option value="all">แสดงทั้งหมด</option>
+            <option value="absent">เฉพาะยังไม่มา</option>
+            <option value="present">เฉพาะมาแล้ว</option>
+            <option value="late">เฉพาะมาสาย</option>
+          </select>
+          <span class="sp"></span>
+          <button class="ghost small" id="refreshBtn" type="button">รีเฟรช</button>
+          <button class="ghost small" id="csvBtn" type="button">ดาวน์โหลด Excel (CSV)</button>
+        </div>
+        <div id="dCheck"></div>
+        <div id="dTime" class="tablewrap hidden">
+          <table>
+            <thead><tr><th>#</th><th>ชื่อ</th><th>ส่วนงาน</th><th>เวลาเช็คอิน</th><th>สถานะ</th></tr></thead>
+            <tbody id="dRows"></tbody>
+          </table>
+          <p class="muted" id="dEmpty">ยังไม่มีผู้เช็คอิน</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="present" class="hidden">
+    <button class="ghost close" id="presentClose" type="button">ปิด</button>
+    <h2 id="pTitle"></h2>
+    <div class="muted" id="pSub"></div>
+    <div id="pQr"></div>
+    <div class="countdown"><div class="track"><i id="pBar"></i></div><div class="txt" id="pCd"></div></div>
+    <div class="closedbox hidden" id="pClosed" style="font-size:24px"></div>
+    <div class="count">สแกนเพื่อเช็คอิน · เช็คอินแล้ว <b id="pCount">0</b> คน</div>
+  </div>
+
+  <!-- ============ หน้าผู้เข้าร่วม ============ -->
+  <section id="viewAttend" class="hidden">
+    <div class="attend">
+      <div class="meeting-head hidden" id="aHead">
+        <div class="t" id="aTitle"></div>
+        <div class="s" id="aSub"></div>
+      </div>
+      <div class="card" id="aLoading"><span class="muted">กำลังตรวจสอบ QR...</span></div>
+
+      <div class="card stop hidden" id="aStop">
+        <div class="icon">!</div>
+        <h2 id="aStopTitle">QR หมดอายุ</h2>
+        <p class="muted" id="aStopMsg" style="margin:0">กรุณาสแกน QR บนจอในห้องประชุมใหม่อีกครั้ง</p>
+        <button class="ghost hidden" id="aRetry" type="button" style="margin-top:16px">ลองอีกครั้ง</button>
+      </div>
+
+      <div class="card hidden" id="aFormCard">
+        <h2>เช็คอินเข้าร่วมประชุม</h2>
+        <form id="attendForm" autocomplete="off">
+          <div id="aFindBox">
+            <label for="aSearch">พิมพ์ชื่อของคุณ</label>
+            <input id="aSearch" placeholder="พิมพ์บางส่วนของชื่อ เช่น สมช" autocomplete="off" enterkeyhint="search">
+            <div class="results" id="aResults"></div>
+          </div>
+          <div class="picked hidden" id="aPicked">
+            <div style="flex:1"><div class="nm" id="aPickedName"></div><div class="muted" id="aPickedDept"></div></div>
+            <button class="ghost small" type="button" id="aChange">เปลี่ยน</button>
+          </div>
+          <p style="margin:12px 0 0"><button class="link" type="button" id="aNewBtn">ไม่พบชื่อ? เพิ่มชื่อใหม่</button></p>
+          <div class="newbox hidden" id="aNewBox">
+            <label for="aDept">ส่วนงาน</label>
+            <select id="aDept"></select>
+            <label for="aOther">ชื่อ - นามสกุล</label>
+            <input id="aOther" maxlength="80">
+            <div class="hint">ชื่อนี้จะถูกเพิ่มเข้ารายชื่อของส่วนงานอัตโนมัติ ครั้งหน้าค้นหาเจอได้เลย</div>
+          </div>
+          <button class="big" type="submit" id="aSubmit" disabled>เช็คอิน</button>
+        </form>
+        <div class="err hidden" id="aErr"></div>
+      </div>
+
+      <div class="card done hidden" id="aDone">
+        <div class="tick">✓</div>
+        <h2 id="aDoneTitle">เช็คอินสำเร็จ</h2>
+        <div id="aDoneName"></div>
+        <div class="time" id="aDoneTime"></div>
+        <div id="aDoneStatus"></div>
+        <div class="note hidden" id="aDoneNote">เพิ่มชื่อของคุณเข้ารายชื่อส่วนงานแล้ว</div>
+        <p class="muted" style="margin:20px 0 0">ต้องการเช็คอินให้คนอื่น กรุณาสแกน QR บนจอใหม่</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; };
+  const show = (id, on) => $(id).classList.toggle("hidden", !on);
+  const params = new URLSearchParams(location.search);
+  const store = {
+    get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+    set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  };
+  const sess = {
+    get(k){ try{ return sessionStorage.getItem(k) || ""; }catch(e){ return ""; } },
+    set(k, v){ try{ sessionStorage.setItem(k, v); }catch(e){} },
+    del(k){ try{ sessionStorage.removeItem(k); }catch(e){} }
+  };
+  const norm = s => String(s == null ? "" : s).replace(/\s+/g, " ").trim().replace(/^[=+\-@]+/, "").trim();
+  const key = s => String(s == null ? "" : s).replace(/\s+/g, " ").trim().toLowerCase();
+  const byThai = (a, b) => a.localeCompare(b, "th");
+
+  const paramApi = params.get("api") || "";
+  const API = CONFIG.API_URL || (/^https:\/\/script\.google\.com\//.test(paramApi) ? paramApi : "");
+  const baseUrl = location.origin + location.pathname;
+  const withApi = q => { if(!CONFIG.API_URL && API) q.set("api", API); return q; };
+
+  /* ---------- เวลา (เวลาไทย) ---------- */
+  const TZ = "Asia/Bangkok";
+  const fmtTime = iso => new Date(iso).toLocaleTimeString("th-TH", {hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false, timeZone:TZ});
+  const fmtDate = d => { if(!d) return ""; const x = new Date(d + "T00:00:00+07:00"); return isNaN(x) ? d : x.toLocaleDateString("th-TH", {weekday:"short", day:"numeric", month:"short", year:"numeric", timeZone:TZ}); };
+  const at = (d, hm) => new Date(d + "T" + hm + ":00+07:00").getTime();
+  const todayStr = () => new Date().toLocaleDateString("en-CA", {timeZone:TZ});
+  const isLate = (iso, m) => !!(m.d && m.l) && new Date(iso).getTime() > at(m.d, m.l);
+  const windowText = m => "สแกนได้ " + (m.s || "00:00") + "–" + (m.e || "23:59") + " น." + (m.l ? " · สายหลัง " + m.l + " น." : "");
+  const subLine = m => [fmtDate(m.d), m.r].filter(Boolean).join(" · ");
+  function windowError(m, now){
+    if(!m.d) return null;
+    const open = at(m.d, m.s || "00:00"), close = m.e ? at(m.d, m.e) : at(m.d, "23:59") + 59000;
+    if(now < open) return "ยังไม่เปิดให้เช็คอิน เปิดสแกนวันที่ " + m.d + " เวลา " + (m.s || "00:00") + " น.";
+    if(now > close) return "ปิดรับเช็คอินแล้ว (รับถึง " + (m.e || "23:59") + " น. ของวันที่ " + m.d + ")";
+    return null;
+  }
+  function phase(m, now){
+    if(!m.d) return "open";
+    if(now < at(m.d, m.s || "00:00")) return "soon";
+    if(now > (m.e ? at(m.d, m.e) : at(m.d, "23:59") + 59000)) return "past";
+    return "open";
+  }
+  function invited(m, db){
+    if(!m.g || !m.g.length) return db.departments.slice();
+    const want = new Set(m.g.map(key));
+    return db.departments.filter(d => want.has(key(d)));
+  }
+
+  /* ================= โหมดทดลอง: จำลอง Code.gs ด้วย localStorage ================= */
+  const demo = (function(){
+    const PIN = "1234", QR_S = 15, GRACE = 1, TICKET_MIN = 10;
+    const ld = (k, d) => store.get("demo_" + k, d), sv = (k, v) => store.set("demo_" + k, v);
+    const h = s => { let a = 0xdeadbeef, b = 0x41c6ce57; for(let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); a = Math.imul(a ^ c, 2654435761); b = Math.imul(b ^ c, 1597334677); } a = Math.imul(a ^ (a >>> 16), 2246822507) ^ Math.imul(b ^ (b >>> 13), 3266489909); b = Math.imul(b ^ (b >>> 16), 2246822507) ^ Math.imul(a ^ (a >>> 13), 3266489909); return (4294967296 * (2097151 & b) + (a >>> 0)).toString(36); };
+    const hmac = (k, m) => h(k + "|" + m) + h(m + "|" + k);
+    const rand = n => { let s = ""; while(s.length < n) s += Math.random().toString(36).slice(2); return s.slice(0, n); };
+    const data = () => ({departments: ld("depts", CONFIG.DEMO_DEPARTMENTS.slice()), members: ld("members", [])});
+    const saveData = db => { sv("depts", db.departments); sv("members", db.members); };
+    const findDept = (list, d) => list.find(x => key(x) === key(d)) || null;
+    const meetings = () => ld("meetings", []);
+    const findM = id => meetings().find(x => x.id === id) || null;
+    const pub = m => ({id:m.id, t:m.t, d:m.d, s:m.s, l:m.l, e:m.e, r:m.r, g:m.g});
+    const checkins = () => ld("checkins", []);
+    const slot = now => Math.floor(now / (QR_S * 1000));
+    const qtok = (m, s) => hmac(m.k, "Q|" + m.id + "|" + s).slice(0, 12);
+    const mkTicket = (m, now) => { const tid = rand(10), exp = now + TICKET_MIN * 60000; return tid + "." + exp + "." + hmac(m.k, "T|" + m.id + "|" + tid + "|" + exp); };
+    const readTicket = (m, t, now) => { const p = String(t || "").split("."); if(p.length !== 3 || hmac(m.k, "T|" + m.id + "|" + p[0] + "|" + p[1]) !== p[2] || Number(p[1]) < now) return null; return p[0]; };
+    const E = (code, error) => ({ok:false, code, error});
+    const counts = list => { const db = data(), rows = checkins(); return list.map(m => { const recs = rows.filter(r => r.m === m.id); const dk = new Set(invited(m, db).map(key)); return Object.assign({}, m, {n: recs.length, late: recs.filter(r => isLate(r.time, m)).length, total: db.members.filter(x => dk.has(key(x.dept))).length}); }); };
+    const A = {
+      meetings(d){ if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง"); return {ok:true, meetings: counts(meetings())}; },
+      createMeeting(d){
+        if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง");
+        const t = norm(d.t).slice(0, 80); if(!t || !d.d) return E("input", "กรุณากรอกชื่อและวันที่");
+        if(d.s && d.e && d.e <= d.s) return E("input", "เวลาปิดสแกนต้องอยู่หลังเวลาเปิดสแกน");
+        const db = data();
+        const m = {id: "M" + rand(9), t, d: d.d, s: d.s || "", l: d.l || "", e: d.e || "", r: norm(d.r).slice(0, 60), g: (d.g || []).map(x => findDept(db.departments, x)).filter(Boolean), k: rand(32)};
+        const list = meetings(); list.push(m); sv("meetings", list);
+        return {ok:true, meeting: m};
+      },
+      deleteMeeting(d){ if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง"); sv("meetings", meetings().filter(x => x.id !== d.m)); return {ok:true, meetings: counts(meetings())}; },
+      host(d){
+        const m = findM(d.m); if(!m || d.k !== m.k) return E("key", "ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว");
+        const now = Date.now(), s = slot(now), db = data();
+        return {ok:true, meeting: pub(m), departments: invited(m, db), members: db.members,
+          records: checkins().filter(r => r.m === m.id).map(r => ({time:r.time, name:r.name, dept:r.dept})),
+          token: qtok(m, s), msLeft: (s + 1) * QR_S * 1000 - now, qrSeconds: QR_S, closed: windowError(m, now), serverTime: now};
+      },
+      claim(d){
+        const m = findM(d.m); if(!m) return E("meeting", "ไม่พบการประชุมนี้");
+        const now = Date.now(), closed = windowError(m, now);
+        if(closed) return Object.assign(E("closed", closed), {meeting: pub(m)});
+        let ticket = "";
+        if(d.ticket && readTicket(m, d.ticket, now)) ticket = d.ticket;
+        else if(d.q){ const cur = slot(now); for(let i = 0; i <= GRACE; i++) if(qtok(m, cur - i) === d.q){ ticket = mkTicket(m, now); break; } }
+        if(!ticket) return E("expired", "QR หมดอายุ");
+        const db = data(), depts = invited(m, db), dk = new Set(depts.map(key));
+        return {ok:true, meeting: pub(m), ticket, departments: depts,
+          members: db.members.filter(x => dk.has(key(x.dept))).map(x => ({dept:x.dept, name:x.name})),
+          checked: checkins().filter(r => r.m === m.id).map(r => key(r.dept) + "|" + key(r.name))};
+      },
+      checkin(d){
+        const m = findM(d.m); if(!m) return E("meeting", "ไม่พบการประชุมนี้");
+        const now = Date.now(), closed = windowError(m, now); if(closed) return E("closed", closed);
+        const tid = readTicket(m, d.ticket, now); if(!tid) return E("expired", "QR หมดอายุ กรุณาสแกนใหม่");
+        let name = norm(d.name).slice(0, 80); if(!name) return E("input", "กรุณาระบุชื่อ");
+        const db = data(), dept = findDept(invited(m, db), d.dept); if(!dept) return E("input", "ไม่พบส่วนงานนี้");
+        const mem = db.members.find(x => key(x.dept) === key(dept) && key(x.name) === key(name)); if(mem) name = mem.name;
+        const all = checkins(), recs = all.filter(r => r.m === m.id);
+        const ex = recs.find(r => key(r.dept) === key(dept) && key(r.name) === key(name));
+        if(ex) return {ok:true, duplicate:true, added:false, record:{time:ex.time, name:ex.name, dept:ex.dept}};
+        if(recs.some(r => r.tid === tid)) return E("used", "QR นี้ใช้เช็คอินไปแล้ว กรุณาสแกนใหม่");
+        const time = new Date(now).toISOString(); let added = false;
+        if(!mem){ db.members.push({dept, name, src:"เพิ่มตอนเช็คอิน"}); saveData(db); added = true; }
+        all.push({time, m: m.id, t: m.t, name, dept, tid}); sv("checkins", all);
+        return {ok:true, duplicate:false, added, record:{time, name, dept}};
+      },
+      admin(d){
+        if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง");
+        const db = data();
+        if(d.op === "addDept"){ const x = norm(d.dept); if(!x) return E("input", "กรุณากรอกชื่อส่วนงาน"); if(!findDept(db.departments, x)) db.departments.push(x); }
+        if(d.op === "delDept"){ db.departments = db.departments.filter(x => key(x) !== key(d.dept)); db.members = db.members.filter(x => key(x.dept) !== key(d.dept)); }
+        if(d.op === "addNames"){
+          const dept = findDept(db.departments, d.dept); if(!dept) return E("input", "ไม่พบส่วนงานนี้");
+          const have = new Set(db.members.filter(x => key(x.dept) === key(dept)).map(x => key(x.name)));
+          (d.names || []).map(norm).forEach(n => { if(n && !have.has(key(n))){ have.add(key(n)); db.members.push({dept, name:n, src:"ผู้ดูแล"}); } });
+        }
+        if(d.op === "delName") db.members = db.members.filter(x => !(key(x.dept) === key(d.dept) && key(x.name) === key(d.name)));
+        if(d.op === "approveName") db.members.forEach(x => { if(key(x.dept) === key(d.dept) && key(x.name) === key(d.name)) x.src = "ผู้ดูแล"; });
+        saveData(db);
+        return Object.assign({ok:true}, data());
+      }
+    };
+    return (action, d) => A[action] ? A[action](d) : E("action", "unknown action");
+  })();
+
+  /* ---------- เรียกเซิร์ฟเวอร์ ---------- */
+  async function call(action, data){
+    let j;
+    if(!API){
+      await new Promise(r => setTimeout(r, 120));
+      j = demo(action, JSON.parse(JSON.stringify(data || {})));
+    }else{
+      // ใช้ text/plain เพื่อไม่ให้เบราว์เซอร์ส่ง preflight (Apps Script ไม่รองรับ)
+      const res = await fetch(API, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(Object.assign({action}, data || {}))});
+      j = await res.json();
+    }
+    if(!j.ok) throw Object.assign(new Error(j.error || "ทำรายการไม่สำเร็จ"), {code: j.code, data: j});
+    return j;
+  }
+
+  /* ---------- QR ---------- */
+  let qrLoading = null;
+  function ensureQr(){
+    if(window.qrcode) return Promise.resolve();
+    if(!qrLoading) qrLoading = new Promise((ok, fail) => {   // สำรองถ้า cdnjs ถูกบล็อก
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";
+      s.onload = ok; s.onerror = fail; document.head.appendChild(s);
+    });
+    return qrLoading;
+  }
+  async function qrImg(elm, text){
+    try{
+      await ensureQr();
+      const qr = qrcode(0, "M"); qr.addData(text); qr.make();
+      elm.innerHTML = qr.createImgTag(8, 16);
+      elm.firstChild.alt = "QR Code สำหรับเช็คอิน";
+    }catch(e){ elm.textContent = "สร้าง QR ไม่สำเร็จ (โหลดไลบรารี QR ไม่ได้)"; }
+  }
+
+  function fillSelect(sel, placeholder, items){
+    sel.innerHTML = "";
+    const p = el("option", null, placeholder); p.value = ""; sel.appendChild(p);
+    items.forEach(it => { const o = el("option", null, it); o.value = it; sel.appendChild(o); });
+  }
+
+  /* ---------- PIN ผู้จัด ---------- */
+  function requirePin(title, onOk){
+    const pin = sess.get("adminPin");
+    if(pin){ onOk(pin, () => gate("PIN ไม่ถูกต้อง")); return; }
+    gate();
+    function gate(msg){
+      sess.del("adminPin");
+      ["viewHome", "viewAdmin"].forEach(v => show(v, false));
+      $("pinTitle").textContent = title;
+      show("pinBox", true);
+      $("pinErr").textContent = msg || ""; show("pinErr", !!msg);
+      $("pinInput").value = ""; $("pinInput").focus();
+    }
+    $("pinForm").onsubmit = async ev => {
+      ev.preventDefault();
+      const p = $("pinInput").value.trim();
+      try{
+        await call("admin", {op:"checkPin", pin:p});
+        sess.set("adminPin", p); show("pinBox", false);
+        onOk(p, () => gate("PIN ไม่ถูกต้อง"));
+      }catch(e){ gate(e.code === "pin" ? "PIN ไม่ถูกต้อง" : "เชื่อมต่อไม่สำเร็จ ลองอีกครั้ง"); }
+    };
+  }
+
+  /* ================= ตารางการประชุม ================= */
+  function showHome(){
+    show("adminLink", true);
+    requirePin("ตารางการประชุม", (pin, relogin) => {
+      show("viewHome", true);
+      $("fDate").value = todayStr();
+      $("fOpen").value = CONFIG.DEFAULT_OPEN; $("fLate").value = CONFIG.DEFAULT_LATE; $("fClose").value = CONFIG.DEFAULT_CLOSE;
+
+      let allDepts = [];
+      call("admin", {op:"checkPin", pin}).then(db => {
+        allDepts = db.departments;
+        const box = $("fDepts"); box.innerHTML = "";
+        if(!allDepts.length){ box.appendChild(el("span", "muted", "ยังไม่มีส่วนงาน — เพิ่มได้ที่ \"จัดการรายชื่อ\"")); return; }
+        allDepts.forEach(d => {
+          const lab = el("label", "chip on");
+          const cb = el("input"); cb.type = "checkbox"; cb.checked = true; cb.value = d;
+          cb.onchange = () => lab.classList.toggle("on", cb.checked);
+          lab.append(cb, document.createTextNode(d)); box.appendChild(lab);
+        });
+      }).catch(e => { if(e.code === "pin") relogin(); });
+      const setAll = v => $("fDepts").querySelectorAll("input").forEach(cb => { cb.checked = v; cb.parentNode.classList.toggle("on", v); });
+      $("selAll").onclick = () => setAll(true);
+      $("selNone").onclick = () => setAll(false);
+
+      const hostUrl = m => baseUrl + "?" + withApi(new URLSearchParams({m: m.id, k: m.k})).toString();
+
+      function render(list){
+        const tb = $("schedBody"); tb.innerHTML = "";
+        if(!list.length){ const tr = el("tr"); const td = el("td", "muted", "ยังไม่มีการประชุม สร้างรายการแรกได้จากฟอร์มด้านซ้าย"); tr.appendChild(td); tb.appendChild(tr); return; }
+        const now = Date.now();
+        const sortKey = m => m.d + " " + (m.s || "00:00");
+        const upcoming = list.filter(m => phase(m, now) !== "past").sort((a, b) => sortKey(a) < sortKey(b) ? -1 : 1);
+        const past = list.filter(m => phase(m, now) === "past").sort((a, b) => sortKey(a) > sortKey(b) ? -1 : 1);
+        const section = (title, items) => {
+          if(!items.length) return;
+          const tr = el("tr"); const td = el("td", "secthead", title); td.colSpan = 4; tr.appendChild(td); tb.appendChild(tr);
+          items.forEach(m => {
+            const ph = phase(m, now);
+            const tr = el("tr", ph === "past" ? "past" : "");
+            const w = el("td", "when"); w.append(el("div", null, fmtDate(m.d)), el("div", "muted", (m.s || "–") + "–" + (m.e || "–") + " น."));
+            const info = el("td");
+            const tl = el("div", "t", m.t);
+            if(ph === "open"){ tl.append(" "); tl.appendChild(el("span", "pill live", "กำลังเปิดสแกน")); }
+            info.append(tl, el("div", "muted", [m.r, m.g && m.g.length ? m.g.join(", ") : "ทุกส่วนงาน"].filter(Boolean).join(" · ")));
+            const att = el("td", "att");
+            att.append(el("div", null, m.n + (m.total ? " / " + m.total : "") + " คน"));
+            if(m.late) att.appendChild(el("div", "muted", "สาย " + m.late));
+            const acts = el("td", "acts");
+            const open = el("button", "small", ph === "past" ? "ดูรายชื่อ" : "เปิด QR"); open.type = "button";
+            open.onclick = () => { location.href = hostUrl(m); };
+            const cp = el("button", "ghost small", "คัดลอกลิงก์"); cp.type = "button"; cp.title = "ลิงก์หน้าผู้จัด สำหรับเปิดบนเครื่องฉาย";
+            cp.onclick = async () => { try{ await navigator.clipboard.writeText(hostUrl(m)); cp.textContent = "คัดลอกแล้ว"; }catch(e){ prompt("คัดลอกลิงก์นี้", hostUrl(m)); } setTimeout(() => cp.textContent = "คัดลอกลิงก์", 1500); };
+            const del = el("button", "danger small", "ลบ"); del.type = "button";
+            del.onclick = async () => {
+              if(!confirm("ลบการประชุม \"" + m.t + "\" ออกจากตาราง?\n(ประวัติการเช็คอินใน Google Sheet ไม่ถูกลบ)")) return;
+              try{ render((await call("deleteMeeting", {pin, m: m.id})).meetings); }catch(e){ if(e.code === "pin") relogin(); }
+            };
+            acts.append(open, cp, del);
+            tr.append(w, info, att, acts); tb.appendChild(tr);
+          });
+        };
+        section("วันนี้ / ที่จะมาถึง", upcoming);
+        section("ประวัติการประชุม", past);
+      }
+      async function load(){
+        show("schedErr", false);
+        try{ render((await call("meetings", {pin})).meetings); }
+        catch(e){ if(e.code === "pin") return relogin(); $("schedErr").textContent = "โหลดตารางไม่สำเร็จ"; show("schedErr", true); }
+      }
+      load();
+      $("schedRefresh").onclick = load;
+
+      $("createForm").onsubmit = async ev => {
+        ev.preventDefault();
+        show("fErr", false);
+        const boxes = [...$("fDepts").querySelectorAll("input")];
+        const picked = boxes.filter(cb => cb.checked).map(cb => cb.value);
+        const fail = msg => { $("fErr").textContent = msg; show("fErr", true); };
+        if(boxes.length && !picked.length) return fail("กรุณาเลือกส่วนงานอย่างน้อย 1 ส่วนงาน");
+        const s = $("fOpen").value, l = $("fLate").value, e = $("fClose").value;
+        if(e <= s) return fail("เวลาปิดสแกนต้องอยู่หลังเวลาเปิดสแกน");
+        if(l && (l < s || l > e)) return fail("เวลา \"สายหลัง\" ต้องอยู่ระหว่างเวลาเปิดและปิดสแกน");
+        $("fSubmit").disabled = true;
+        try{
+          await call("createMeeting", {pin, t: $("fTitle").value, d: $("fDate").value, s, l, e, r: $("fRoom").value,
+            g: picked.length === boxes.length ? [] : picked});   // เลือกครบ = ทุกส่วนงาน (รวมที่เพิ่มภายหลัง)
+          $("fTitle").value = ""; $("fRoom").value = "";
+          await load();
+        }catch(err){ if(err.code === "pin") relogin(); else fail(err.message); }
+        $("fSubmit").disabled = false;
+      };
+    });
+  }
+
+  /* ================= จัดการรายชื่อ ================= */
+  function showAdmin(){
+    show("homeLink", true);
+    document.title = "จัดการรายชื่อ · Meeting Check-in";
+    requirePin("จัดการส่วนงานและรายชื่อ", (pin, relogin) => {
+      show("viewAdmin", true);
+      let db = {departments: [], members: []}, cur = "";
+      async function run(op, data){
+        show("adminErr", false);
+        try{ db = await call("admin", Object.assign({op, pin}, data || {})); render(); return true; }
+        catch(e){ if(e.code === "pin"){ relogin(); return false; } $("adminErr").textContent = e.message; show("adminErr", true); return false; }
+      }
+      function render(){
+        if(!db.departments.some(d => key(d) === key(cur))) cur = db.departments[0] || "";
+        const list = $("deptList"); list.innerHTML = "";
+        if(!db.departments.length) list.appendChild(el("p", "muted", "ยังไม่มีส่วนงาน"));
+        db.departments.forEach(d => {
+          const n = db.members.filter(x => key(x.dept) === key(d)).length;
+          const b = el("button", "deptbtn" + (d === cur ? " on" : "")); b.type = "button";
+          b.append(el("span", null, d), el("span", "n", n + " คน"));
+          b.onclick = () => { cur = d; render(); };
+          list.appendChild(b);
+        });
+        const has = !!cur;
+        show("addNamesForm", has); show("delDeptBtn", has);
+        $("adTitle").textContent = has ? cur : "เลือกหรือเพิ่มส่วนงาน";
+        const mem = db.members.filter(x => key(x.dept) === key(cur)).sort((a, b) => byThai(a.name, b.name));
+        const auto = mem.filter(x => x.src === "เพิ่มตอนเช็คอิน").length;
+        $("adCount").textContent = has ? mem.length + " คน" + (auto ? " · เพิ่มตอนเช็คอิน " + auto + " คน (ตรวจสอบได้)" : "") : "";
+        const box = $("memberList"); box.innerHTML = "";
+        if(has && !mem.length) box.appendChild(el("p", "muted", "ยังไม่มีรายชื่อในส่วนงานนี้"));
+        mem.forEach(x => {
+          const r = el("div", "mrow");
+          r.appendChild(el("span", "nm", x.name));
+          if(x.src === "เพิ่มตอนเช็คอิน"){
+            r.appendChild(el("span", "pill new", "เพิ่มตอนเช็คอิน"));
+            const ok = el("button", "ghost small", "ยืนยัน"); ok.type = "button";
+            ok.onclick = () => run("approveName", {dept: cur, name: x.name});
+            r.appendChild(ok);
+          }
+          const del = el("button", "danger small", "ลบ"); del.type = "button";
+          del.onclick = () => { if(confirm("ลบ \"" + x.name + "\" ออกจาก " + cur + "?")) run("delName", {dept: cur, name: x.name}); };
+          r.appendChild(del); box.appendChild(r);
+        });
+      }
+      $("addDeptForm").onsubmit = async ev => {
+        ev.preventDefault();
+        const d = norm($("newDept").value); if(!d) return;
+        if(await run("addDept", {dept: d})){ cur = db.departments.find(x => key(x) === key(d)) || cur; $("newDept").value = ""; render(); }
+      };
+      $("delDeptBtn").onclick = () => {
+        const n = db.members.filter(x => key(x.dept) === key(cur)).length;
+        if(confirm("ลบส่วนงาน \"" + cur + "\"" + (n ? " และรายชื่อทั้งหมด " + n + " คน" : "") + "?\n(ประวัติการเช็คอินเดิมไม่ถูกลบ)")) run("delDept", {dept: cur});
+      };
+      $("addNamesForm").onsubmit = async ev => {
+        ev.preventDefault();
+        const names = $("newNames").value.split(/\r?\n/).map(s => norm(s.split("\t")[0])).filter(Boolean);
+        if(!names.length) return;
+        if(await run("addNames", {dept: cur, names})) $("newNames").value = "";
+      };
+      run("checkPin");
+    });
+  }
+
+  /* ================= แดชบอร์ดการประชุม (ผู้จัด) ================= */
+  function showDash(mid, hk){
+    show("viewDash", true); show("homeLink", true);
+    let m = null, records = [], depts = [], members = [], tab = "check";
+    let token = "", deadline = 0, qrSec = 15, lastFetch = 0, closed = null, fails = 0;
+
+    function setQr(tok){
+      if(tok === token) return;
+      token = tok;
+      const url = baseUrl + "?" + withApi(new URLSearchParams({m: mid, q: tok})).toString();
+      qrImg($("dQr"), url); qrImg($("pQr"), url);
+    }
+    function buildGroups(){
+      const rec = new Map(records.map(r => [key(r.dept) + "|" + key(r.name), r]));
+      const used = new Set();
+      const groups = depts.map(d => {
+        const names = members.filter(x => key(x.dept) === key(d)).map(x => x.name);
+        records.forEach(r => { if(key(r.dept) === key(d) && !names.some(n => key(n) === key(r.name))) names.push(r.name); });
+        const rows = names.sort(byThai).map(n => { const k = key(d) + "|" + key(n); const r = rec.get(k); if(r) used.add(k); return {dept: d, name: n, r}; });
+        return {dept: d, rows};
+      });
+      const extra = records.filter(r => !used.has(key(r.dept) + "|" + key(r.name)));
+      if(extra.length) groups.push({dept: "อื่นๆ (ไม่อยู่ในส่วนงานที่เชิญ)", rows: extra.map(r => ({dept: r.dept, name: r.name, r}))});
+      return groups;
+    }
+    const statusOf = r => !r ? ["none", "ยังไม่มา"] : (isLate(r.time, m) ? ["late", "สาย"] : ["ok", "ตรงเวลา"]);
+
+    function render(){
+      const groups = buildGroups();
+      const total = groups.reduce((s, g) => s + g.rows.length, 0);
+      const late = records.filter(r => isLate(r.time, m)).length;
+      $("dCount").textContent = records.length;
+      $("dOf").textContent = total ? "/ " + total : "";
+      $("pCount").textContent = records.length + (total ? " / " + total : "");
+      $("dLate").textContent = late ? "(สาย " + late + " คน)" : "";
+      const filter = $("dFilter").value;
+      const pass = x => filter === "all" || (filter === "absent" ? !x.r : filter === "present" ? !!x.r : (x.r && isLate(x.r.time, m)));
+
+      const box = $("dCheck"); box.innerHTML = "";
+      let shown = 0;
+      groups.forEach(g => {
+        const rows = g.rows.filter(pass);
+        const came = g.rows.filter(x => x.r).length;
+        if(!rows.length && filter !== "all") return;
+        const sec = el("div", "deptsec");
+        const head = el("div", "depthead");
+        const bar = el("div", "bar2"); const fill = el("i"); fill.style.width = (g.rows.length ? came / g.rows.length * 100 : 0) + "%"; bar.appendChild(fill);
+        head.append(el("h3", null, g.dept), bar, el("span", "muted", came + " / " + g.rows.length));
+        sec.appendChild(head);
+        if(!g.rows.length) sec.appendChild(el("p", "muted", "ยังไม่มีรายชื่อในส่วนงานนี้"));
+        if(rows.length){
+          const t = el("table"); const tb = el("tbody");
+          rows.forEach(x => {
+            const tr = el("tr");
+            tr.appendChild(el("td", "mark " + (x.r ? "y" : "n"), x.r ? "✓" : "○"));
+            tr.appendChild(el("td", null, x.name + (g.dept.startsWith("อื่นๆ") ? " (" + x.dept + ")" : "")));
+            tr.appendChild(el("td", "muted", x.r ? fmtTime(x.r.time) : "–"));
+            const [c, label] = statusOf(x.r); const td = el("td"); td.appendChild(el("span", "pill " + c, label)); tr.appendChild(td);
+            tb.appendChild(tr); shown++;
+          });
+          t.appendChild(tb); const w = el("div", "tablewrap"); w.appendChild(t); sec.appendChild(w);
+        }
+        box.appendChild(sec);
+      });
+      if(!groups.length) box.appendChild(el("p", "muted", "ยังไม่มีส่วนงาน เพิ่มได้ที่หน้า \"จัดการรายชื่อ\""));
+      else if(!shown && filter !== "all") box.appendChild(el("p", "muted", "ไม่มีรายชื่อตามตัวกรองนี้"));
+
+      const tb = $("dRows"); tb.innerHTML = "";
+      records.forEach((r, i) => {
+        const tr = el("tr");
+        [String(i + 1), r.name, r.dept, fmtTime(r.time)].forEach(v => tr.appendChild(el("td", null, v)));
+        const [c, label] = statusOf(r); const td = el("td"); td.appendChild(el("span", "pill " + c, label)); tr.appendChild(td);
+        tb.appendChild(tr);
+      });
+      show("dEmpty", records.length === 0);
+    }
+
+    let busy = false;
+    async function refresh(){
+      if(busy) return; busy = true; lastFetch = Date.now();
+      try{
+        const j = await call("host", {m: mid, k: hk});
+        fails = 0; show("dErr", false);
+        if(!m){
+          m = j.meeting;
+          document.title = m.t + " · Check-in";
+          $("dTitle").textContent = m.t; $("pTitle").textContent = m.t;
+          $("dSub").textContent = subLine(m); $("pSub").textContent = subLine(m) + " · " + windowText(m);
+          $("dWindow").textContent = windowText(m) + (m.g && m.g.length ? " · " + m.g.join(", ") : "");
+        }
+        depts = j.departments; members = j.members;
+        records = j.records.slice().sort((a, b) => new Date(a.time) - new Date(b.time));
+        closed = j.closed; qrSec = j.qrSeconds;
+        deadline = Date.now() + j.msLeft;
+        show("dQrWrap", !closed); show("dClosed", !!closed); $("dClosed").textContent = closed || "";
+        show("pQr", !closed); show("pClosed", !!closed); $("pClosed").textContent = closed || "";
+        document.querySelector("#present .countdown").classList.toggle("hidden", !!closed);
+        if(!closed) setQr(j.token);
+        render();
+        $("dUpdated").textContent = "อัปเดตล่าสุด " + fmtTime(new Date().toISOString()) + " น.";
+      }catch(e){
+        if(e.code === "key"){
+          clearInterval(timer);
+          show("dQrWrap", false); $("dErr").textContent = e.message; show("dErr", true); busy = false; return;
+        }
+        fails++;
+        if(fails > 1){ $("dErr").textContent = "เชื่อมต่อไม่ได้ QR บนจออาจหมดอายุ กำลังลองใหม่..."; show("dErr", true); }
+      }
+      busy = false;
+    }
+    function tick(){
+      const now = Date.now();
+      if(deadline && !closed){
+        const left = Math.max(0, deadline - now);
+        const pct = Math.min(100, left / (qrSec * 1000) * 100) + "%";
+        const txt = "QR เปลี่ยนใหม่ใน " + Math.ceil(left / 1000) + " วินาที";
+        $("dBar").style.width = pct; $("pBar").style.width = pct;
+        $("dCd").textContent = txt; $("pCd").textContent = txt;
+      }
+      if(document.hidden && !closed) return;
+      if((deadline && now >= deadline + 200 && !closed) || now - lastFetch >= 5000) refresh();
+    }
+    const timer = setInterval(tick, 250);
+    refresh();
+
+    $("refreshBtn").onclick = refresh;
+    $("dFilter").onchange = render;
+    document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+      tab = b.dataset.tab;
+      document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
+      show("dCheck", tab === "check"); show("dTime", tab === "time"); show("dFilter", tab === "check");
+    });
+    $("presentBtn").onclick = () => show("present", true);
+    $("presentClose").onclick = () => show("present", false);
+    document.addEventListener("keydown", e => { if(e.key === "Escape") show("present", false); });
+
+    $("csvBtn").onclick = () => {
+      if(!m) return;
+      const cell = v => { let s = String(v == null ? "" : v); if(/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+      const rows = [["ส่วนงาน", "ชื่อ", "เวลาเช็คอิน", "สถานะ", "การประชุม", "วันที่", "สายหลัง"]];
+      buildGroups().forEach(g => g.rows.forEach(x => rows.push([x.dept, x.name, x.r ? fmtTime(x.r.time) : "", statusOf(x.r)[1], m.t, m.d, m.l])));
+      const csv = "﻿" + rows.map(r => r.map(cell).join(",")).join("\r\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv;charset=utf-8"}));
+      a.download = "checkin_" + (m.d || "meeting") + "_" + m.t.replace(/[\\/:*?"<>|\s]+/g, "_") + ".csv";
+      document.body.appendChild(a); a.click(); a.remove();
+    };
+  }
+
+  /* ================= หน้าผู้เข้าร่วม ================= */
+  function showAttend(mid){
+    show("viewAttend", true);
+    const tkKey = "tk_" + mid;
+    let m = null, ticket = "", depts = [], members = [], checked = new Set(), picked = null, mode = "find";
+
+    const stop = (title, msg, retry) => {
+      ["aLoading", "aFormCard", "aDone"].forEach(x => show(x, false));
+      $("aStopTitle").textContent = title; $("aStopMsg").textContent = msg;
+      show("aRetry", !!retry); show("aStop", true);
+    };
+    const head = mt => { if(!mt) return; $("aTitle").textContent = mt.t; $("aSub").textContent = subLine(mt) + " · " + windowText(mt); show("aHead", true); document.title = "เช็คอิน · " + mt.t; };
+    const stopFor = e => {
+      if(e.code === "closed"){ head(e.data && e.data.meeting); stop(e.message.startsWith("ยังไม่") ? "ยังไม่เปิดให้เช็คอิน" : "ปิดรับเช็คอินแล้ว", e.message); }
+      else if(e.code === "expired" || e.code === "used") stop("QR หมดอายุ", "QR เปลี่ยนใหม่ทุก 15 วินาที กรุณาสแกน QR บนจอในห้องประชุมใหม่อีกครั้ง");
+      else if(e.code === "meeting") stop("ไม่พบการประชุม", "การประชุมนี้อาจถูกยกเลิกแล้ว");
+      else stop("เชื่อมต่อไม่สำเร็จ", "กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง", true);
+    };
+
+    /* ----- ค้นหาชื่อ ----- */
+    const ck = (d, n) => key(d) + "|" + key(n);
+    function search(q){
+      const box = $("aResults"); box.innerHTML = "";
+      q = key(q);
+      if(!q) return;
+      const words = q.split(" ");
+      const hits = members.filter(x => { const n = key(x.name); return words.every(w => n.includes(w)); })
+        .map(x => { const n = key(x.name); return {x, score: n.startsWith(q) ? 0 : n.split(" ").some(p => p.startsWith(words[0])) ? 1 : 2}; })
+        .sort((a, b) => a.score - b.score || byThai(a.x.name, b.x.name)).slice(0, 8);
+      if(!hits.length){
+        const d = el("div", "noresult"); d.append("ไม่พบชื่อนี้ — ");
+        const b = el("button", "link", "เพิ่มชื่อใหม่"); b.type = "button"; b.onclick = () => openNew($("aSearch").value);
+        d.appendChild(b); box.appendChild(d); return;
+      }
+      hits.forEach(({x}) => {
+        const done = checked.has(ck(x.dept, x.name));
+        const b = el("button", "res"); b.type = "button"; b.disabled = done;
+        const nm = el("span", "nm");
+        const i = key(x.name).indexOf(words[0]);   // ไฮไลต์ส่วนที่ตรงกับคำค้น
+        if(i >= 0){ nm.append(x.name.slice(0, i)); nm.appendChild(el("mark", null, x.name.slice(i, i + words[0].length))); nm.append(x.name.slice(i + words[0].length)); }
+        else nm.textContent = x.name;
+        b.append(nm, el("span", "dp", done ? "✓ เช็คอินแล้ว" : x.dept));
+        b.onclick = () => pick(x);
+        box.appendChild(b);
+      });
+    }
+    function pick(x){
+      picked = x; mode = "find";
+      $("aPickedName").textContent = x.name; $("aPickedDept").textContent = x.dept;
+      show("aFindBox", false); show("aPicked", true); show("aNewBox", false); show("aNewBtn", false);
+      $("aSubmit").disabled = false;
+    }
+    function unpick(){
+      picked = null; mode = "find";
+      show("aPicked", false); show("aFindBox", true); show("aNewBox", false); show("aNewBtn", true);
+      $("aSubmit").disabled = true;
+      $("aSearch").focus(); search($("aSearch").value);
+    }
+    function openNew(prefill){
+      picked = null; mode = "new";
+      show("aFindBox", false); show("aPicked", false); show("aNewBtn", false); show("aNewBox", true);
+      if(prefill && !$("aOther").value) $("aOther").value = prefill;
+      $("aSubmit").disabled = false;
+      ($("aDept").value ? $("aOther") : $("aDept")).focus();
+    }
+    $("aSearch").addEventListener("input", () => search($("aSearch").value));
+    $("aSearch").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); const f = $("aResults").querySelector(".res:not(:disabled)"); if(f) f.click(); } });
+    $("aChange").onclick = unpick;
+    $("aNewBtn").onclick = () => openNew($("aSearch").value);
+
+    async function load(){
+      ["aStop", "aFormCard", "aDone"].forEach(x => show(x, false)); show("aLoading", true);
+      const q = params.get("q") || "";
+      const saved = sess.get(tkKey);
+      try{
+        const j = await call("claim", q ? {m: mid, q} : {m: mid, ticket: saved});
+        m = j.meeting; ticket = j.ticket; depts = j.departments; members = j.members; checked = new Set(j.checked);
+        sess.set(tkKey, ticket);
+        // ลบรหัส QR ออกจากแถบที่อยู่ ส่งต่อลิงก์นี้ให้คนอื่นไม่ได้
+        history.replaceState(null, "", baseUrl + "?" + withApi(new URLSearchParams({m: mid})).toString());
+        head(m);
+        fillSelect($("aDept"), "-- เลือกส่วนงาน --", depts);
+        show("aLoading", false); show("aFormCard", true);
+        const me = store.get("me", null);
+        const mine = me && members.find(x => key(x.name) === key(me.name) && key(x.dept) === key(me.dept));
+        if(mine && !checked.has(ck(mine.dept, mine.name))) pick(mine); else unpick();
+      }catch(e){
+        if(!q && !saved && !e.code) e.code = "expired";
+        stopFor(e);
+      }
+    }
+    $("aRetry").onclick = load;
+
+    $("attendForm").addEventListener("submit", async ev => {
+      ev.preventDefault();
+      let dept, name;
+      if(mode === "new"){ dept = $("aDept").value; name = norm($("aOther").value); if(!dept){ $("aDept").focus(); return; } if(!name){ $("aOther").focus(); return; } }
+      else if(picked){ dept = picked.dept; name = picked.name; }
+      else return;
+      const btn = $("aSubmit"); btn.disabled = true; btn.textContent = "กำลังบันทึก...";
+      show("aErr", false);
+      try{
+        const r = await call("checkin", {m: mid, ticket, dept, name});
+        sess.del(tkKey);
+        store.set("me", {name: r.record.name, dept: r.record.dept});
+        show("aFormCard", false); show("aDone", true);
+        $("aDoneTitle").textContent = r.duplicate ? "คุณเช็คอินไว้แล้ว" : "เช็คอินสำเร็จ";
+        $("aDoneName").textContent = r.record.name + " · " + r.record.dept;
+        $("aDoneTime").textContent = fmtTime(r.record.time) + " น.";
+        $("aDoneStatus").innerHTML = "";
+        const late = isLate(r.record.time, m);
+        $("aDoneStatus").appendChild(el("span", "pill " + (late ? "late" : "ok"), late ? "มาสาย" : "ตรงเวลา"));
+        show("aDoneNote", r.added);
+      }catch(e){
+        if(["expired", "used", "closed", "meeting"].includes(e.code)){ sess.del(tkKey); stopFor(e); }
+        else { $("aErr").textContent = e.code === "input" ? e.message : "บันทึกไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง"; show("aErr", true); }
+      }
+      btn.disabled = false; btn.textContent = "เช็คอิน";
+    });
+    load();
+  }
+
+  /* ---------- เลือกหน้า ---------- */
+  if(!API && !params.get("m")) show("demoBanner", true);
+  const mid = params.get("m");
+  if(mid && params.get("k")){ if(!API) show("demoBanner", true); showDash(mid, params.get("k")); }
+  else if(mid) showAttend(mid);
+  else if(params.get("admin") === "1") showAdmin();
+  else showHome();
+})();
+</script>
+</body>
+</html>
