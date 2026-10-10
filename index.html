@@ -974,6 +974,7 @@ const CONFIG = {
     const stopFor = e => {
       if(e.code === "closed"){ head(e.data && e.data.meeting); stop(e.message.startsWith("ยังไม่") ? "ยังไม่เปิดให้เช็คอิน" : "ปิดรับเช็คอินแล้ว", e.message); }
       else if(e.code === "expired" || e.code === "used") stop("QR หมดอายุ", "QR เปลี่ยนใหม่ทุก 1 นาที กรุณาสแกน QR บนจอในห้องประชุมใหม่อีกครั้ง");
+      else if(e.code === "meeting" && !API) stop("ยังไม่ได้เชื่อม Google Sheet", "แอปยังอยู่ในโหมดทดลอง ข้อมูลการประชุมอยู่ในเครื่องที่สร้างการประชุมเท่านั้น โทรศัพท์เครื่องอื่นจึงหาไม่เจอ ผู้จัดต้องตั้งค่า Google Sheet และใส่ API_URL ก่อน (ดู README.md)");
       else if(e.code === "meeting") stop("ไม่พบการประชุม", "การประชุมนี้อาจถูกยกเลิกแล้ว");
       else stop("เชื่อมต่อไม่สำเร็จ", "กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง", true);
     };
