@@ -15,14 +15,14 @@ const ADMIN_PIN = '1234';        // รหัสผู้จัด/ผู้ด�
 const QR_SECONDS = 15;           // QR เปลี่ยนทุกกี่วินาที
 const QR_GRACE_SLOTS = 1;        // ยอมรับ QR รอบก่อนหน้ากี่รอบ (1 = QR ใช้ได้นานสุด 30 วินาที)
 const TICKET_MINUTES = 10;       // หลังสแกนแล้ว ต้องกดเช็คอินภายในกี่นาที
-const DEFAULT_DEPARTMENTS = ['CPS', 'Production', 'Quality', 'Maintenance', 'Engineering', 'Logistics', 'HR', 'IT', 'Safety', 'Purchasing', 'Finance'];
+const DEFAULT_DEPARTMENTS = ['CPS team leader', 'Deputy Team Leader of CPS Construction Project', 'CPS', 'SOS/EOS', 'QOS', 'DOS', 'MOS', 'COS', 'POS', 'Body Workshop', 'Paint Workshop', 'General Assembly Workshop', 'Powertrain Workshop', 'KD'];
 
 const TZ = 'Asia/Bangkok';
 const HEAD = {
-  Meetings: ['รหัสประชุม', 'ชื่อประชุม', 'วันที่', 'เปิดสแกน', 'สายหลัง', 'ปิดสแกน', 'ห้อง', 'ส่วนงาน', 'คีย์ผู้จัด', 'สร้างเมื่อ'],
+  Meetings: ['รหัสประชุม', 'ชื่อประชุม', 'วันที่', 'เปิดสแกน', 'สายหลัง', 'ปิดสแกน', 'ห้อง', 'ส่วนงาน', 'คีย์ผู้จัด', 'สร้างเมื่อ', 'ผู้จัด (Host)'],
   Checkins: ['เวลาเช็คอิน', 'รหัสประชุม', 'ชื่อประชุม', 'ชื่อ', 'ส่วนงาน', 'รหัสการสแกน'],
   Departments: ['ส่วนงาน'],
-  Members: ['ส่วนงาน', 'ชื่อ', 'ที่มา', 'วันที่เพิ่ม']
+  Members: ['ส่วนงาน', 'ชื่อ', 'ที่มา', 'วันที่เพิ่ม', 'รหัสพนักงาน']
 };
 const SRC_AUTO = 'เพิ่มตอนเช็คอิน';
 const SRC_ADMIN = 'ผู้ดูแล';
@@ -33,7 +33,7 @@ function sheet_(name) {
   let sh = ss.getSheetByName(name);
   if (!sh) {
     sh = ss.insertSheet(name);
-    if (name === 'Meetings') sh.getRange('A:J').setNumberFormat('@'); // เก็บวันที่/เวลาเป็นข้อความ
+    if (name === 'Meetings') sh.getRange('A:K').setNumberFormat('@'); // เก็บวันที่/เวลาเป็นข้อความ
     sh.appendRow(HEAD[name]);
     sh.setFrozenRows(1);
     if (name === 'Departments') {
@@ -70,9 +70,9 @@ function getData_() {
   const departments = rows_(sheet_('Departments'), 1)
     .map(function (r) { return String(r[0]).trim(); })
     .filter(function (d, i, a) { return d && a.map(key_).indexOf(key_(d)) === i; });
-  const members = rows_(sheet_('Members'), 3)
+  const members = rows_(sheet_('Members'), 5)
     .filter(function (r) { return String(r[0]).trim() && String(r[1]).trim(); })
-    .map(function (r) { return { dept: String(r[0]).trim(), name: String(r[1]).trim(), src: String(r[2] || '') }; });
+    .map(function (r) { return { dept: String(r[0]).trim(), name: String(r[1]).trim(), src: String(r[2] || ''), id: String(r[4] || '').trim() }; });
   return { departments: departments, members: members };
 }
 function findDept_(departments, dept) {
@@ -88,11 +88,11 @@ function invited_(mt, db) {
 
 /* ---------- การประชุม ---------- */
 function readMeetings_() {
-  return rows_(sheet_('Meetings'), 10).filter(function (r) { return r[0]; }).map(function (r) {
+  return rows_(sheet_('Meetings'), 11).filter(function (r) { return r[0]; }).map(function (r) {
     return {
       id: String(r[0]), t: String(r[1]), d: cellText_(r[2], 'yyyy-MM-dd'),
       s: cellText_(r[3], 'HH:mm'), l: cellText_(r[4], 'HH:mm'), e: cellText_(r[5], 'HH:mm'), r: String(r[6] || ''),
-      g: String(r[7] || '').split('|').map(function (x) { return x.trim(); }).filter(Boolean), k: String(r[8])
+      g: String(r[7] || '').split('|').map(function (x) { return x.trim(); }).filter(Boolean), k: String(r[8]), h: String(r[10] || '')
     };
   });
 }
@@ -109,7 +109,7 @@ function windowError_(mt, now) {
 function findMeeting_(id) {
   return readMeetings_().filter(function (x) { return x.id === String(id || ''); })[0] || null;
 }
-function pub_(mt) { return { id: mt.id, t: mt.t, d: mt.d, s: mt.s, l: mt.l, e: mt.e, r: mt.r, g: mt.g }; }
+function pub_(mt) { return { id: mt.id, t: mt.t, d: mt.d, s: mt.s, l: mt.l, e: mt.e, r: mt.r, g: mt.g, h: mt.h }; }
 
 function readCheckins_(meetingId) {
   return rows_(sheet_('Checkins'), 6)
@@ -187,8 +187,8 @@ function createMeeting_(data) {
   if (s && e && e <= s) return err_('input', 'เวลาปิดสแกนต้องอยู่หลังเวลาเปิดสแกน');
   const db = getData_();
   const g = (data.g || []).map(function (x) { return findDept_(db.departments, x); }).filter(Boolean);
-  const mt = { id: 'M' + rand_(9), t: t, d: d, s: s, l: l, e: e, r: clean_(data.r, 60), g: g, k: rand_(32) };
-  sheet_('Meetings').appendRow([mt.id, mt.t, mt.d, mt.s, mt.l, mt.e, mt.r, mt.g.join('|'), mt.k, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm')]);
+  const mt = { id: 'M' + rand_(9), t: t, d: d, s: s, l: l, e: e, r: clean_(data.r, 60), g: g, k: rand_(32), h: clean_(data.h, 60) };
+  sheet_('Meetings').appendRow([mt.id, mt.t, mt.d, mt.s, mt.l, mt.e, mt.r, mt.g.join('|'), mt.k, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm'), mt.h]);
   return { ok: true, meeting: mt };
 }
 function deleteMeeting_(data) {
@@ -299,14 +299,19 @@ function admin_(data) {
       const have = {};
       db.members.forEach(function (x) { if (key_(x.dept) === key_(dept)) have[key_(x.name)] = 1; });
       const rows = [];
-      (data.names || []).forEach(function (n) {
-        n = clean_(n, 80);
-        if (n && !have[key_(n)]) { have[key_(n)] = 1; rows.push([dept, n, SRC_ADMIN, now]); }
+      const sh = sheet_('Members');
+      const existing = rows_(sh, 2);
+      (data.names || []).forEach(function (x) {
+        const n = clean_(typeof x === 'object' ? x.name : x, 80);
+        const id = clean_(typeof x === 'object' ? x.id : '', 30);
+        if (!n) return;
+        if (have[key_(n)]) { // มีชื่อแล้ว -> อัปเดตรหัสพนักงานถ้าใส่มา
+          if (id) existing.forEach(function (r, i) { if (key_(r[0]) === key_(dept) && key_(r[1]) === key_(n)) sh.getRange(i + 2, 5).setValue(id); });
+          return;
+        }
+        have[key_(n)] = 1; rows.push([dept, n, SRC_ADMIN, now, id]);
       });
-      if (rows.length) {
-        const sh = sheet_('Members');
-        sh.getRange(sh.getLastRow() + 1, 1, rows.length, 4).setValues(rows);
-      }
+      if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
       break;
     }
 
