@@ -12,8 +12,8 @@
 
 /* ===================== ตั้งค่า ===================== */
 const ADMIN_PIN = '1234';        // รหัสผู้จัด/ผู้ดูแล — เปลี่ยนก่อนใช้งานจริง
-const QR_SECONDS = 15;           // QR เปลี่ยนทุกกี่วินาที
-const QR_GRACE_SLOTS = 1;        // ยอมรับ QR รอบก่อนหน้ากี่รอบ (1 = QR ใช้ได้นานสุด 30 วินาที)
+const QR_SECONDS = 60;           // QR เปลี่ยนทุกกี่วินาที
+const QR_GRACE_SLOTS = 1;        // ยอมรับ QR รอบก่อนหน้ากี่รอบ (1 = QR แต่ละอันใช้ได้นานสุด 2 นาที)
 const TICKET_MINUTES = 10;       // หลังสแกนแล้ว ต้องกดเช็คอินภายในกี่นาที
 const DEFAULT_DEPARTMENTS = ['CPS team leader', 'Deputy Team Leader of CPS Construction Project', 'CPS', 'SOS/EOS', 'QOS', 'DOS', 'MOS', 'COS', 'POS', 'Body Workshop', 'Paint Workshop', 'General Assembly Workshop', 'Powertrain Workshop', 'KD'];
 

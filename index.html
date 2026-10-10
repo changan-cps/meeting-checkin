@@ -442,7 +442,7 @@ const CONFIG = {
 
   /* ================= โหมดทดลอง: จำลอง Code.gs ด้วย localStorage ================= */
   const demo = (function(){
-    const PIN = "1234", QR_S = 15, GRACE = 1, TICKET_MIN = 10;
+    const PIN = "1234", QR_S = 60, GRACE = 1, TICKET_MIN = 10;
     const ld = (k, d) => store.get("demo_" + k, d), sv = (k, v) => store.set("demo_" + k, v);
     const h = s => { let a = 0xdeadbeef, b = 0x41c6ce57; for(let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); a = Math.imul(a ^ c, 2654435761); b = Math.imul(b ^ c, 1597334677); } a = Math.imul(a ^ (a >>> 16), 2246822507) ^ Math.imul(b ^ (b >>> 13), 3266489909); b = Math.imul(b ^ (b >>> 16), 2246822507) ^ Math.imul(a ^ (a >>> 13), 3266489909); return (4294967296 * (2097151 & b) + (a >>> 0)).toString(36); };
     const hmac = (k, m) => h(k + "|" + m) + h(m + "|" + k);
@@ -763,7 +763,7 @@ const CONFIG = {
   function showDash(mid, hk){
     show("viewDash", true); show("homeLink", true);
     let m = null, records = [], depts = [], members = [], tab = "check";
-    let token = "", deadline = 0, qrSec = 15, lastFetch = 0, closed = null, fails = 0;
+    let token = "", deadline = 0, qrSec = 60, lastFetch = 0, closed = null, fails = 0;
 
     function setQr(tok){
       if(tok === token) return;
@@ -973,7 +973,7 @@ const CONFIG = {
     const head = mt => { if(!mt) return; $("aTitle").textContent = mt.t; $("aSub").textContent = subLine(mt) + " · " + windowText(mt); show("aHead", true); document.title = "เช็คอิน · " + mt.t; };
     const stopFor = e => {
       if(e.code === "closed"){ head(e.data && e.data.meeting); stop(e.message.startsWith("ยังไม่") ? "ยังไม่เปิดให้เช็คอิน" : "ปิดรับเช็คอินแล้ว", e.message); }
-      else if(e.code === "expired" || e.code === "used") stop("QR หมดอายุ", "QR เปลี่ยนใหม่ทุก 15 วินาที กรุณาสแกน QR บนจอในห้องประชุมใหม่อีกครั้ง");
+      else if(e.code === "expired" || e.code === "used") stop("QR หมดอายุ", "QR เปลี่ยนใหม่ทุก 1 นาที กรุณาสแกน QR บนจอในห้องประชุมใหม่อีกครั้ง");
       else if(e.code === "meeting") stop("ไม่พบการประชุม", "การประชุมนี้อาจถูกยกเลิกแล้ว");
       else stop("เชื่อมต่อไม่สำเร็จ", "กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง", true);
     };
