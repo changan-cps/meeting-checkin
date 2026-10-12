@@ -116,6 +116,11 @@ const CONFIG = {
   .tile.on{background:var(--ok-bg);border-color:#9fd6bf}
   .tile.on:hover{background:#d6efe4}
   .tile.on .dn{color:var(--ok)} .tile.on .ct{color:var(--ok)}
+  .tile.late{background:var(--bad-bg);border-color:#f0b4ad}
+  .tile.late:hover{background:#fbdcd8}
+  .tile.late .dn,.tile.late .ct{color:var(--bad)}
+  .tile .st{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:middle;background:var(--bad);color:#fff}
+  .tile.on .st{background:var(--ok)}
   .tile .full{display:inline-block;font-size:11px;font-weight:700;background:var(--ok);color:#fff;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:middle}
   .tile.empty{opacity:.55;cursor:default}
   .pos{color:var(--muted);font-size:13px;margin-left:6px}
@@ -664,7 +669,7 @@ const CONFIG = {
             if(ph === "open"){ tl.append(" "); tl.appendChild(el("span", "pill live", "กำลังเปิดสแกน")); }
             info.append(tl, el("div", "muted", [m.r, m.g && m.g.length ? m.g.join(", ") : "ทุกส่วนงาน"].filter(Boolean).join(" · ")));
             const att = el("td", "att");
-            att.append(el("div", null, m.n + (m.total ? " / " + m.total : "") + " คน"));
+            att.append(el("div", null, "มา " + m.n + " คน"));
             if(m.late) att.appendChild(el("div", "muted", "สาย " + m.late));
             const acts = el("td", "acts");
             const open = el("button", "small", ph === "past" ? "ดูรายชื่อ" : "เปิด QR"); open.type = "button";
@@ -842,20 +847,25 @@ const CONFIG = {
       if(!real.length) return;
       const covered = real.filter(g => g.rows.some(x => x.r)).length;
       const head = el("div", "sumhead");
-      head.append(el("b", null, "ส่วนงานที่มาแล้ว " + covered + " / " + real.length), el("span", "muted", "กดที่กล่องเพื่อดูรายชื่อของส่วนงานนั้น"));
+      head.append(el("b", null, "ส่วนงานที่มาแล้ว " + covered + " / " + real.length), el("span", "muted", "เขียว = มาแล้ว · แดง = มาสาย/ยังไม่มาหลัง " + (m.l || "เวลาสาย") + " น. · กดที่กล่องเพื่อดูรายชื่อ"));
       box.appendChild(head);
       const grid = el("div", "sumgrid");
+      const pastLate = !!(m.d && m.l) && Date.now() > at(m.d, m.l);
       real.forEach(g => {
-        const came = g.rows.filter(x => x.r);
-        const t = el("button", "tile" + (came.length ? " on" : "") + (g.rows.length ? "" : " empty")); t.type = "button";
+        const came = g.rows.filter(x => x.r).sort((a, b) => new Date(a.r.time) - new Date(b.r.time));
+        // เขียว = คนแรกของส่วนงานมาทันเวลา, แดง = มาสาย หรือเลยเวลาสายแล้วยังไม่มีใครมา, เทา = ยังไม่ถึงเวลาสาย
+        const firstLate = came.length && isLate(came[0].r.time, m);
+        const state = came.length ? (firstLate ? "late" : "on") : (pastLate && g.rows.length ? "late" : "");
+        const t = el("button", "tile" + (state ? " " + state : "") + (g.rows.length || came.length ? "" : " empty")); t.type = "button";
         t.appendChild(el("div", "dn", g.dept));
-        const ct = el("div", "ct"); ct.append(String(came.length)); ct.appendChild(el("small", null, " / " + g.rows.length + " คน"));
-        if(g.rows.length && came.length === g.rows.length) ct.appendChild(el("span", "full", "ครบ"));
+        const ct = el("div", "ct"); ct.append(String(came.length)); ct.appendChild(el("small", null, " คน"));
+        if(state === "late") ct.appendChild(el("span", "st", came.length ? "มาสาย" : "ยังไม่มา"));
+        else if(state === "on") ct.appendChild(el("span", "st", "มาแล้ว"));
         t.appendChild(ct);
         const who = el("div", "who");
-        came.slice(0, 4).forEach(x => { const sp = el("span"); sp.append(x.name); const p = posOf(x.dept, x.name); if(p){ sp.append(" "); sp.appendChild(el("i", null, "· " + p)); } who.appendChild(sp); });
+        came.slice(0, 4).forEach(x => { const sp = el("span"); sp.append((isLate(x.r.time, m) ? "⏰ " : "") + x.name); const p = posOf(x.dept, x.name); if(p){ sp.append(" "); sp.appendChild(el("i", null, "· " + p)); } who.appendChild(sp); });
         if(came.length > 4) who.appendChild(el("span", "muted", "+ อีก " + (came.length - 4) + " คน"));
-        if(!came.length) who.appendChild(el("span", "muted", g.rows.length ? "ยังไม่มีคนมา" : "ยังไม่มีรายชื่อ"));
+        if(!came.length) who.appendChild(el("span", "muted", g.rows.length ? (state === "late" ? "เลยเวลา " + m.l + " น. แล้ว" : "ยังไม่มีคนมา") : "ยังไม่มีรายชื่อ"));
         t.appendChild(who);
         if(g.rows.length) t.onclick = () => { $("dFilter").value = "all"; render(); const sec = document.getElementById(secId(g.dept)); if(sec) sec.scrollIntoView({behavior: "smooth"}); };
         grid.appendChild(t);
@@ -869,8 +879,8 @@ const CONFIG = {
       const total = groups.reduce((s, g) => s + g.rows.length, 0);
       const late = records.filter(r => isLate(r.time, m)).length;
       $("dCount").textContent = records.length;
-      $("dOf").textContent = total ? "/ " + total : "";
-      $("pCount").textContent = records.length + (total ? " / " + total : "");
+      $("dOf").textContent = ""; show("dOf", false);
+      $("pCount").textContent = String(records.length);
       $("dLate").textContent = late ? "(สาย " + late + " คน)" : "";
       const filter = $("dFilter").value;
       const pass = x => filter === "all" || (filter === "absent" ? !x.r : filter === "present" ? !!x.r : (x.r && isLate(x.r.time, m)));
@@ -883,8 +893,7 @@ const CONFIG = {
         if(!rows.length && filter !== "all") return;
         const sec = el("div", "deptsec"); sec.id = secId(g.dept);
         const head = el("div", "depthead");
-        const bar = el("div", "bar2"); const fill = el("i"); fill.style.width = (g.rows.length ? came / g.rows.length * 100 : 0) + "%"; bar.appendChild(fill);
-        head.append(el("h3", null, g.dept), bar, el("span", "muted", came + " / " + g.rows.length));
+        head.append(el("h3", null, g.dept), el("span", "muted", "มา " + came + " คน"));
         sec.appendChild(head);
         if(!g.rows.length) sec.appendChild(el("p", "muted", "ยังไม่มีรายชื่อในส่วนงานนี้"));
         if(rows.length){
