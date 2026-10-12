@@ -102,7 +102,24 @@ const CONFIG = {
   .tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
   .tools select{width:auto;padding:8px 36px 8px 12px;font-size:14px}
   .tools .sp{flex:1}
-  .deptsec{margin-bottom:18px}
+  .sumhead{display:flex;align-items:baseline;gap:8px;margin:4px 0 10px;flex-wrap:wrap}
+  .sumhead b{font-size:18px}
+  .sumgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:18px}
+  .tile{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#f7f9fc;cursor:pointer;text-align:left;color:var(--ink);font-weight:400;display:block;width:100%}
+  .tile:hover{border-color:#c5cedb;background:#f7f9fc}
+  .tile .dn{font-weight:700;font-size:14px;line-height:1.3;color:var(--muted)}
+  .tile .ct{font-size:24px;font-weight:700;line-height:1.2;margin:4px 0 2px;color:#9aa6b8}
+  .tile .ct small{font-size:14px;font-weight:600}
+  .tile .who{font-size:12.5px;line-height:1.35;color:var(--ink)}
+  .tile .who span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .who i{font-style:normal;color:var(--muted)}
+  .tile.on{background:var(--ok-bg);border-color:#9fd6bf}
+  .tile.on:hover{background:#d6efe4}
+  .tile.on .dn{color:var(--ok)} .tile.on .ct{color:var(--ok)}
+  .tile .full{display:inline-block;font-size:11px;font-weight:700;background:var(--ok);color:#fff;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+  .tile.empty{opacity:.55;cursor:default}
+  .pos{color:var(--muted);font-size:13px;margin-left:6px}
+  .deptsec{margin-bottom:18px;scroll-margin-top:12px}
   .depthead{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--soft);border-radius:8px}
   .depthead h3{flex:1}
   .bar2{height:6px;background:#dbe2ec;border-radius:3px;overflow:hidden;width:90px}
@@ -269,8 +286,8 @@ const CONFIG = {
         <div class="muted" id="adCount"></div>
         <form id="addNamesForm">
           <label for="newNames">เพิ่มรายชื่อผู้ต้องเข้าประชุม (หนึ่งคนต่อบรรทัด)</label>
-          <div class="hint" style="margin:-2px 0 6px">วางจาก Excel ได้ 2 คอลัมน์: ชื่อ | รหัสพนักงาน (รหัสไม่ใส่ก็ได้) · ใส่ชื่อเดิมพร้อมรหัสเพื่ออัปเดตรหัส</div>
-          <textarea id="newNames" placeholder="ตัวอย่าง:&#10;Yureeporn K.&#9;CCASA00233"></textarea>
+          <div class="hint" style="margin:-2px 0 6px">วางจาก Excel ได้ 3 คอลัมน์: ชื่อ | รหัสพนักงาน | ตำแหน่ง (รหัส/ตำแหน่งไม่ใส่ก็ได้) · ใส่ชื่อเดิมพร้อมรหัส/ตำแหน่งเพื่ออัปเดต</div>
+          <textarea id="newNames" placeholder="ตัวอย่าง:&#10;Yureeporn K.&#9;CCASA00233&#9;Engineer"></textarea>
           <button type="submit" style="margin-top:10px">เพิ่มรายชื่อ</button>
         </form>
         <div id="memberList" style="margin-top:18px"></div>
@@ -297,6 +314,7 @@ const CONFIG = {
       <div class="card">
         <div class="stat"><b id="dCount">0</b><span class="of" id="dOf"></span><span>คนเช็คอินแล้ว</span><span class="muted" id="dLate"></span></div>
         <div class="muted" id="dUpdated"></div>
+        <div id="dSum" style="margin-top:14px"></div>
         <div class="tools">
           <div class="tabs" role="tablist">
             <button type="button" class="on" data-tab="check">เช็คลิสต์ตามส่วนงาน</button>
@@ -493,7 +511,7 @@ const CONFIG = {
         if(!ticket) return E("expired", "QR หมดอายุ");
         const db = data(), depts = invited(m, db), dk = new Set(depts.map(key));
         return {ok:true, meeting: pub(m), ticket, departments: depts,
-          members: db.members.filter(x => dk.has(key(x.dept))).map(x => ({dept:x.dept, name:x.name})),
+          members: db.members.filter(x => dk.has(key(x.dept))).map(x => ({dept:x.dept, name:x.name, pos:x.pos || ""})),
           checked: checkins().filter(r => r.m === m.id).map(r => key(r.dept) + "|" + key(r.name))};
       },
       checkin(d){
@@ -521,10 +539,10 @@ const CONFIG = {
           const dept = findDept(db.departments, d.dept); if(!dept) return E("input", "ไม่พบส่วนงานนี้");
           const have = new Set(db.members.filter(x => key(x.dept) === key(dept)).map(x => key(x.name)));
           (d.names || []).forEach(x => {
-            const n = norm(typeof x === "object" ? x.name : x), id = norm(typeof x === "object" ? x.id : "");
+            const n = norm(typeof x === "object" ? x.name : x), id = norm(typeof x === "object" ? x.id : ""), pos = norm(typeof x === "object" ? x.pos : "");
             if(!n) return;
-            if(have.has(key(n))){ if(id) db.members.forEach(y => { if(key(y.dept) === key(dept) && key(y.name) === key(n)) y.id = id; }); return; }
-            have.add(key(n)); db.members.push({dept, name:n, src:"ผู้ดูแล", id});
+            if(have.has(key(n))){ db.members.forEach(y => { if(key(y.dept) === key(dept) && key(y.name) === key(n)){ if(id) y.id = id; if(pos) y.pos = pos; } }); return; }
+            have.add(key(n)); db.members.push({dept, name:n, src:"ผู้ดูแล", id, pos});
           });
         }
         if(d.op === "delName") db.members = db.members.filter(x => !(key(x.dept) === key(d.dept) && key(x.name) === key(d.name)));
@@ -729,6 +747,7 @@ const CONFIG = {
         mem.forEach(x => {
           const r = el("div", "mrow");
           r.appendChild(el("span", "nm", x.name));
+          if(x.pos) r.appendChild(el("span", "pill none", x.pos));
           if(x.id) r.appendChild(el("span", "muted", x.id));
           if(x.src === "เพิ่มตอนเช็คอิน"){
             r.appendChild(el("span", "pill new", "เพิ่มตอนเช็คอิน"));
@@ -753,8 +772,9 @@ const CONFIG = {
       $("addNamesForm").onsubmit = async ev => {
         ev.preventDefault();
         const names = $("newNames").value.split(/\r?\n/).map(line => {
-          const parts = line.split(/\t|\s{2,}|,|\|/).map(norm).filter(Boolean);   // ชื่อ [Tab] รหัส
-          return parts.length ? {name: parts[0], id: parts[1] || ""} : null;
+          // ชื่อ [Tab] รหัส [Tab] ตำแหน่ง — คงช่องว่างไว้ เพื่อให้ตำแหน่งไม่เลื่อนไปอยู่ช่องรหัส
+          const parts = (line.includes("\t") ? line.split("\t") : line.split(/\s{2,}|,|\|/)).map(norm);
+          return parts[0] ? {name: parts[0], id: parts[1] || "", pos: parts[2] || ""} : null;
         }).filter(Boolean);
         if(!names.length) return;
         if(await run("addNames", {dept: cur, names})) $("newNames").value = "";
@@ -812,9 +832,40 @@ const CONFIG = {
       return groups;
     }
     const statusOf = r => !r ? ["none", "ยังไม่มา"] : (isLate(r.time, m) ? ["late", "สาย"] : ["ok", "ตรงเวลา"]);
+    const posOf = (d, n) => { const x = members.find(y => key(y.dept) === key(d) && key(y.name) === key(n)); return x && x.pos || ""; };
+    const secId = d => "sec-" + encodeURIComponent(key(d)).replace(/%/g, "");
+
+    // สรุปรวมตามส่วนงาน: มาแล้วอย่างน้อย 1 คน = เขียว, แสดงจำนวนและชื่อ/ตำแหน่งของคนที่มา
+    function renderSummary(groups){
+      const box = $("dSum"); box.innerHTML = "";
+      const real = groups.filter(g => !g.dept.startsWith("อื่นๆ"));
+      if(!real.length) return;
+      const covered = real.filter(g => g.rows.some(x => x.r)).length;
+      const head = el("div", "sumhead");
+      head.append(el("b", null, "ส่วนงานที่มาแล้ว " + covered + " / " + real.length), el("span", "muted", "กดที่กล่องเพื่อดูรายชื่อของส่วนงานนั้น"));
+      box.appendChild(head);
+      const grid = el("div", "sumgrid");
+      real.forEach(g => {
+        const came = g.rows.filter(x => x.r);
+        const t = el("button", "tile" + (came.length ? " on" : "") + (g.rows.length ? "" : " empty")); t.type = "button";
+        t.appendChild(el("div", "dn", g.dept));
+        const ct = el("div", "ct"); ct.append(String(came.length)); ct.appendChild(el("small", null, " / " + g.rows.length + " คน"));
+        if(g.rows.length && came.length === g.rows.length) ct.appendChild(el("span", "full", "ครบ"));
+        t.appendChild(ct);
+        const who = el("div", "who");
+        came.slice(0, 4).forEach(x => { const sp = el("span"); sp.append(x.name); const p = posOf(x.dept, x.name); if(p){ sp.append(" "); sp.appendChild(el("i", null, "· " + p)); } who.appendChild(sp); });
+        if(came.length > 4) who.appendChild(el("span", "muted", "+ อีก " + (came.length - 4) + " คน"));
+        if(!came.length) who.appendChild(el("span", "muted", g.rows.length ? "ยังไม่มีคนมา" : "ยังไม่มีรายชื่อ"));
+        t.appendChild(who);
+        if(g.rows.length) t.onclick = () => { $("dFilter").value = "all"; render(); const sec = document.getElementById(secId(g.dept)); if(sec) sec.scrollIntoView({behavior: "smooth"}); };
+        grid.appendChild(t);
+      });
+      box.appendChild(grid);
+    }
 
     function render(){
       const groups = buildGroups();
+      renderSummary(groups);
       const total = groups.reduce((s, g) => s + g.rows.length, 0);
       const late = records.filter(r => isLate(r.time, m)).length;
       $("dCount").textContent = records.length;
@@ -830,7 +881,7 @@ const CONFIG = {
         const rows = g.rows.filter(pass);
         const came = g.rows.filter(x => x.r).length;
         if(!rows.length && filter !== "all") return;
-        const sec = el("div", "deptsec");
+        const sec = el("div", "deptsec"); sec.id = secId(g.dept);
         const head = el("div", "depthead");
         const bar = el("div", "bar2"); const fill = el("i"); fill.style.width = (g.rows.length ? came / g.rows.length * 100 : 0) + "%"; bar.appendChild(fill);
         head.append(el("h3", null, g.dept), bar, el("span", "muted", came + " / " + g.rows.length));
@@ -841,7 +892,9 @@ const CONFIG = {
           rows.forEach(x => {
             const tr = el("tr");
             tr.appendChild(el("td", "mark " + (x.r ? "y" : "n"), x.r ? "✓" : "○"));
-            tr.appendChild(el("td", null, x.name + (g.dept.startsWith("อื่นๆ") ? " (" + x.dept + ")" : "")));
+            const nm = el("td", null, x.name + (g.dept.startsWith("อื่นๆ") ? " (" + x.dept + ")" : ""));
+            const p = posOf(x.dept, x.name); if(p) nm.appendChild(el("span", "pos", p));
+            tr.appendChild(nm);
             tr.appendChild(el("td", "muted", x.r ? fmtTime(x.r.time) : "–"));
             const [c, label] = statusOf(x.r); const td = el("td"); td.appendChild(el("span", "pill " + c, label)); tr.appendChild(td);
             tb.appendChild(tr); shown++;
@@ -976,8 +1029,8 @@ const CONFIG = {
     $("csvBtn").onclick = () => {
       if(!m) return;
       const cell = v => { let s = String(v == null ? "" : v); if(/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
-      const rows = [["ส่วนงาน", "ชื่อ", "เวลาเช็คอิน", "สถานะ", "การประชุม", "วันที่", "สายหลัง"]];
-      buildGroups().forEach(g => g.rows.forEach(x => rows.push([x.dept, x.name, x.r ? fmtTime(x.r.time) : "", statusOf(x.r)[1], m.t, m.d, m.l])));
+      const rows = [["ส่วนงาน", "ชื่อ", "ตำแหน่ง", "เวลาเช็คอิน", "สถานะ", "การประชุม", "วันที่", "สายหลัง"]];
+      buildGroups().forEach(g => g.rows.forEach(x => rows.push([x.dept, x.name, posOf(x.dept, x.name), x.r ? fmtTime(x.r.time) : "", statusOf(x.r)[1], m.t, m.d, m.l])));
       const csv = "﻿" + rows.map(r => r.map(cell).join(",")).join("\r\n");
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv;charset=utf-8"}));
@@ -1028,7 +1081,7 @@ const CONFIG = {
         const i = key(x.name).indexOf(words[0]);   // ไฮไลต์ส่วนที่ตรงกับคำค้น
         if(i >= 0){ nm.append(x.name.slice(0, i)); nm.appendChild(el("mark", null, x.name.slice(i, i + words[0].length))); nm.append(x.name.slice(i + words[0].length)); }
         else nm.textContent = x.name;
-        b.append(nm, el("span", "dp", done ? "✓ เช็คอินแล้ว" : x.dept));
+        b.append(nm, el("span", "dp", done ? "✓ เช็คอินแล้ว" : x.dept + (x.pos ? " · " + x.pos : "")));
         b.onclick = () => pick(x);
         box.appendChild(b);
       });

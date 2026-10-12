@@ -22,7 +22,7 @@ const HEAD = {
   Meetings: ['รหัสประชุม', 'ชื่อประชุม', 'วันที่', 'เปิดสแกน', 'สายหลัง', 'ปิดสแกน', 'ห้อง', 'ส่วนงาน', 'คีย์ผู้จัด', 'สร้างเมื่อ', 'ผู้จัด (Host)'],
   Checkins: ['เวลาเช็คอิน', 'รหัสประชุม', 'ชื่อประชุม', 'ชื่อ', 'ส่วนงาน', 'รหัสการสแกน'],
   Departments: ['ส่วนงาน'],
-  Members: ['ส่วนงาน', 'ชื่อ', 'ที่มา', 'วันที่เพิ่ม', 'รหัสพนักงาน']
+  Members: ['ส่วนงาน', 'ชื่อ', 'ที่มา', 'วันที่เพิ่ม', 'รหัสพนักงาน', 'ตำแหน่ง']
 };
 const SRC_AUTO = 'เพิ่มตอนเช็คอิน';
 const SRC_ADMIN = 'ผู้ดูแล';
@@ -39,6 +39,9 @@ function sheet_(name) {
     if (name === 'Departments') {
       sh.getRange(2, 1, DEFAULT_DEPARTMENTS.length, 1).setValues(DEFAULT_DEPARTMENTS.map(function (d) { return [d]; }));
     }
+  } else if (sh.getLastColumn() < HEAD[name].length) {
+    // ชีตเดิมจากเวอร์ชันก่อน -> เติมหัวคอลัมน์ใหม่ (เช่น ตำแหน่ง) ให้อัตโนมัติ
+    sh.getRange(1, 1, 1, HEAD[name].length).setValues([HEAD[name]]);
   }
   return sh;
 }
@@ -70,9 +73,9 @@ function getData_() {
   const departments = rows_(sheet_('Departments'), 1)
     .map(function (r) { return String(r[0]).trim(); })
     .filter(function (d, i, a) { return d && a.map(key_).indexOf(key_(d)) === i; });
-  const members = rows_(sheet_('Members'), 5)
+  const members = rows_(sheet_('Members'), 6)
     .filter(function (r) { return String(r[0]).trim() && String(r[1]).trim(); })
-    .map(function (r) { return { dept: String(r[0]).trim(), name: String(r[1]).trim(), src: String(r[2] || ''), id: String(r[4] || '').trim() }; });
+    .map(function (r) { return { dept: String(r[0]).trim(), name: String(r[1]).trim(), src: String(r[2] || ''), id: String(r[4] || '').trim(), pos: String(r[5] || '').trim() }; });
   return { departments: departments, members: members };
 }
 function findDept_(departments, dept) {
@@ -230,7 +233,7 @@ function claim_(data) {
   const depts = invited_(mt, db), dk = depts.map(key_);
   return {
     ok: true, meeting: pub_(mt), ticket: ticket, departments: depts,
-    members: db.members.filter(function (x) { return dk.indexOf(key_(x.dept)) >= 0; }).map(function (x) { return { dept: x.dept, name: x.name }; }),
+    members: db.members.filter(function (x) { return dk.indexOf(key_(x.dept)) >= 0; }).map(function (x) { return { dept: x.dept, name: x.name, pos: x.pos }; }),
     checked: readCheckins_(mt.id).map(function (r) { return key_(r.dept) + '|' + key_(r.name); })
   };
 }
@@ -304,14 +307,19 @@ function admin_(data) {
       (data.names || []).forEach(function (x) {
         const n = clean_(typeof x === 'object' ? x.name : x, 80);
         const id = clean_(typeof x === 'object' ? x.id : '', 30);
+        const pos = clean_(typeof x === 'object' ? x.pos : '', 60);
         if (!n) return;
-        if (have[key_(n)]) { // มีชื่อแล้ว -> อัปเดตรหัสพนักงานถ้าใส่มา
-          if (id) existing.forEach(function (r, i) { if (key_(r[0]) === key_(dept) && key_(r[1]) === key_(n)) sh.getRange(i + 2, 5).setValue(id); });
+        if (have[key_(n)]) { // มีชื่อแล้ว -> อัปเดตรหัสพนักงาน/ตำแหน่งถ้าใส่มา
+          existing.forEach(function (r, i) {
+            if (key_(r[0]) !== key_(dept) || key_(r[1]) !== key_(n)) return;
+            if (id) sh.getRange(i + 2, 5).setValue(id);
+            if (pos) sh.getRange(i + 2, 6).setValue(pos);
+          });
           return;
         }
-        have[key_(n)] = 1; rows.push([dept, n, SRC_ADMIN, now, id]);
+        have[key_(n)] = 1; rows.push([dept, n, SRC_ADMIN, now, id, pos]);
       });
-      if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
+      if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
       break;
     }
 
