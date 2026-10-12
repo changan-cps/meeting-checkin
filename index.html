@@ -33,6 +33,11 @@ const CONFIG = {
   header.bar{background:var(--brand);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:18px}
   header.bar h1{font-size:18px;margin:0;font-weight:600;flex:1}
   header.bar a{color:#fff;text-decoration:none;font-size:14px;opacity:.9}
+  .langsw{display:inline-flex;background:rgba(255,255,255,.14);border-radius:8px;padding:2px;order:9}
+  .langsw button{background:none;color:#fff;opacity:.75;padding:4px 9px;font-size:13px;border-radius:6px;font-weight:600}
+  .langsw button:hover{background:rgba(255,255,255,.12)}
+  .langsw button.on{background:#fff;color:var(--brand);opacity:1}
+  @media (max-width:520px){ header.bar{flex-wrap:wrap;gap:8px 14px} header.bar h1{flex-basis:100%} }
   main{max-width:1140px;margin:0 auto;padding:20px 16px 60px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
   h2{font-size:20px;margin:0 0 14px}
@@ -211,6 +216,7 @@ const CONFIG = {
 
 <header class="bar">
   <h1>Meeting Check-in</h1>
+  <span id="langSw" class="langsw"><button type="button" data-l="th">TH</button><button type="button" data-l="zh">中文</button><button type="button" data-l="en">EN</button></span>
   <a href="./" id="homeLink" class="hidden">ตารางการประชุม</a>
   <a href="./?admin=1" id="adminLink" class="hidden">จัดการรายชื่อ</a>
 </header>
@@ -419,6 +425,231 @@ const CONFIG = {
 <script>
 (function(){
   "use strict";
+  /* ================= ภาษา TH / 中文 / EN =================
+     ข้อความในแอปเขียนเป็นภาษาไทย ตัวแปลนี้แปลงข้อความบนหน้าจอเป็นภาษาที่เลือก
+     (ชื่อคน ชื่อส่วนงาน ไม่ถูกแปล) */
+  const LANGS = ["th", "zh", "en"];
+  const LANG = (() => {
+    let l = ""; try{ l = localStorage.getItem("lang") || ""; }catch(e){}
+    if(LANGS.includes(l)) return l;
+    const nav = (navigator.language || "").toLowerCase();
+    return nav.startsWith("zh") ? "zh" : nav.startsWith("th") ? "th" : "en";
+  })();
+  const LOCALE = {th: "th-TH", zh: "zh-CN", en: "en-GB"}[LANG];
+
+  // ข้อความตรงตัว: "ไทย": ["中文", "English"]
+  const DICT = {
+    "จัดการรายชื่อ": ["名单管理", "Manage names"],
+    "ตารางการประชุม": ["会议日程", "Meeting schedule"],
+    "สำหรับผู้จัดการประชุม": ["会议组织者专用", "For meeting organizers"],
+    "จัดการส่วนงานและรายชื่อ": ["管理部门与名单", "Manage departments & names"],
+    "รหัสผู้จัด (PIN)": ["组织者密码 (PIN)", "Organizer PIN"],
+    "เข้าสู่ระบบ": ["登录", "Log in"],
+    "PIN ไม่ถูกต้อง": ["PIN 错误", "Wrong PIN"],
+    "เชื่อมต่อไม่สำเร็จ ลองอีกครั้ง": ["连接失败，请重试", "Connection failed, please try again"],
+    "สร้างการประชุม": ["创建会议", "Create meeting"],
+    "ชื่อการประชุม": ["会议名称", "Meeting title"],
+    "ผู้จัด / หน่วยงานเจ้าภาพ (Host)": ["主持人 / 主办部门 (Host)", "Host / organizing team"],
+    "วันที่": ["日期", "Date"],
+    "เปิดสแกน": ["开始签到", "Opens"],
+    "สายหลัง": ["迟到时间", "Late after"],
+    "ปิดสแกน": ["结束签到", "Closes"],
+    "QR สแกนได้เฉพาะช่วงเปิด–ปิดของวันที่กำหนด เช็คอินหลังเวลา \"สายหลัง\" นับเป็นสาย": ["二维码仅在指定日期的开放时间内有效，超过“迟到时间”签到记为迟到", "The QR works only between open and close on the set date. Check-ins after \"Late after\" count as late"],
+    "ห้อง / สถานที่": ["会议室 / 地点", "Room / location"],
+    "ส่วนงานที่ต้องเข้าประชุม": ["参会部门", "Departments to attend"],
+    "ทั้งหมด": ["全选", "All"],
+    "ล้าง": ["清除", "Clear"],
+    "กำลังโหลด...": ["加载中...", "Loading..."],
+    "กด \"เปิด\" เพื่อฉาย QR หรือดูรายชื่อผู้เข้าประชุมของแต่ละรอบ": ["点击“打开”显示二维码或查看每次会议的参会名单", "Click \"Open\" to show the QR or see who attended each meeting"],
+    "รีเฟรช": ["刷新", "Refresh"],
+    "ส่วนงาน": ["部门", "Department"],
+    "เพิ่ม": ["添加", "Add"],
+    "ลบส่วนงาน": ["删除部门", "Delete department"],
+    "เพิ่มรายชื่อผู้ต้องเข้าประชุม (หนึ่งคนต่อบรรทัด)": ["添加参会人员（每行一人）", "Add attendees (one per line)"],
+    "วางจาก Excel ได้ 3 คอลัมน์: ชื่อ | รหัสพนักงาน | ตำแหน่ง (รหัส/ตำแหน่งไม่ใส่ก็ได้) · ใส่ชื่อเดิมพร้อมรหัส/ตำแหน่งเพื่ออัปเดต": ["可从 Excel 粘贴 3 列：姓名 | 工号 | 职位（工号/职位可留空）· 输入已有姓名及工号/职位即可更新", "Paste 3 columns from Excel: Name | Employee ID | Position (ID/position optional) · Enter an existing name with ID/position to update it"],
+    "เพิ่มรายชื่อ": ["添加名单", "Add names"],
+    "ย้ายเข้า Google Sheet": ["导入 Google Sheet", "Move to Google Sheet"],
+    "กำลังย้าย...": ["导入中...", "Moving..."],
+    "เพิ่มส่วนงาน": ["添加部门", "Add department"],
+    "คนเช็คอินแล้ว": ["人已签到", "checked in"],
+    "เช็คลิสต์ตามส่วนงาน": ["按部门清单", "By department"],
+    "ลำดับเวลา": ["按时间", "By time"],
+    "ตัวกรอง": ["筛选", "Filter"],
+    "แสดงทั้งหมด": ["显示全部", "Show all"],
+    "เฉพาะยังไม่มา": ["仅未到", "Not yet arrived"],
+    "เฉพาะมาแล้ว": ["仅已到", "Arrived"],
+    "เฉพาะมาสาย": ["仅迟到", "Late only"],
+    "ดาวน์โหลด Excel (CSV)": ["下载 Excel (CSV)", "Download Excel (CSV)"],
+    "พิมพ์ฟอร์ม / PDF": ["打印表格 / PDF", "Print form / PDF"],
+    "ชื่อ": ["姓名", "Name"],
+    "เวลาเช็คอิน": ["签到时间", "Check-in time"],
+    "สถานะ": ["状态", "Status"],
+    "ยังไม่มีผู้เช็คอิน": ["暂无人签到", "No one has checked in yet"],
+    "ฉาย QR เต็มจอ": ["全屏显示二维码", "Show QR full screen"],
+    "ปิด": ["关闭", "Close"],
+    "สแกนเพื่อเช็คอิน · เช็คอินแล้ว": ["扫码签到 · 已签到", "Scan to check in · Checked in"],
+    "คน": ["人", "people"],
+    "กำลังตรวจสอบ QR...": ["正在验证二维码...", "Checking QR..."],
+    "QR หมดอายุ": ["二维码已过期", "QR expired"],
+    "กรุณาสแกน QR บนจอในห้องประชุมใหม่อีกครั้ง": ["请重新扫描会议室屏幕上的二维码", "Please scan the QR on the meeting room screen again"],
+    "ลองอีกครั้ง": ["重试", "Try again"],
+    "เช็คอินเข้าร่วมประชุม": ["会议签到", "Meeting check-in"],
+    "พิมพ์ชื่อของคุณ": ["输入您的姓名", "Type your name"],
+    "พิมพ์บางส่วนของชื่อ เช่น สมช": ["输入姓名的一部分，如 Wang", "Type part of your name, e.g. Wang"],
+    "โทรศัพท์เครื่องนี้จำชื่อคุณไว้จากการเช็คอินครั้งก่อน กดเช็คอินได้เลย": ["本机已记住您上次签到的姓名，直接点击签到即可", "This phone remembers you from last time. Just tap Check in"],
+    "เปลี่ยน": ["更改", "Change"],
+    "ไม่ใช่ฉัน": ["不是我", "Not me"],
+    "ไม่พบชื่อ? เพิ่มชื่อใหม่": ["找不到姓名？添加新姓名", "Name not found? Add a new name"],
+    "ไม่พบชื่อนี้ —": ["未找到该姓名 —", "Name not found —"],
+    "เพิ่มชื่อใหม่": ["添加新姓名", "Add new name"],
+    "ชื่อ - นามสกุล": ["姓名", "Full name"],
+    "ชื่อนี้จะถูกเพิ่มเข้ารายชื่อของส่วนงานอัตโนมัติ ครั้งหน้าค้นหาเจอได้เลย": ["该姓名将自动加入部门名单，下次可直接搜索", "This name will be added to the department list automatically, so you can find it next time"],
+    "-- เลือกส่วนงาน --": ["-- 选择部门 --", "-- Select department --"],
+    "เช็คอิน": ["签到", "Check in"],
+    "กำลังบันทึก...": ["保存中...", "Saving..."],
+    "เช็คอินสำเร็จ": ["签到成功", "Checked in"],
+    "คุณเช็คอินไว้แล้ว": ["您已签到", "You have already checked in"],
+    "เพิ่มชื่อของคุณเข้ารายชื่อส่วนงานแล้ว": ["已将您的姓名加入部门名单", "Your name has been added to the department list"],
+    "ต้องการเช็คอินให้คนอื่น กรุณาสแกน QR บนจอใหม่": ["如需为他人签到，请重新扫描屏幕上的二维码", "To check in someone else, scan the QR on the screen again"],
+    "✓ เช็คอินแล้ว": ["✓ 已签到", "✓ Checked in"],
+    "ตรงเวลา": ["准时", "On time"],
+    "สาย": ["迟到", "Late"],
+    "มาสาย": ["迟到", "Late"],
+    "มาแล้ว": ["已到", "Arrived"],
+    "ยังไม่มา": ["未到", "Not yet"],
+    "ยังไม่มีคนมา": ["暂无人到", "No one yet"],
+    "ยังไม่มีรายชื่อ": ["暂无名单", "No names yet"],
+    "ยังไม่มีรายชื่อในส่วนงานนี้": ["该部门暂无名单", "No names in this department yet"],
+    "ยังไม่มีส่วนงาน": ["暂无部门", "No departments yet"],
+    "ยังไม่มีส่วนงาน เพิ่มได้ที่หน้า \"จัดการรายชื่อ\"": ["暂无部门，请在“名单管理”中添加", "No departments yet. Add them under \"Manage names\""],
+    "ยังไม่มีส่วนงาน — เพิ่มได้ที่ \"จัดการรายชื่อ\"": ["暂无部门 — 请在“名单管理”中添加", "No departments yet — add them under \"Manage names\""],
+    "ไม่มีรายชื่อตามตัวกรองนี้": ["没有符合筛选条件的名单", "No names match this filter"],
+    "เพิ่มตอนเช็คอิน": ["签到时添加", "Added at check-in"],
+    "ยืนยัน": ["确认", "Confirm"],
+    "ลบ": ["删除", "Delete"],
+    "เลือกหรือเพิ่มส่วนงาน": ["选择或添加部门", "Select or add a department"],
+    "ทุกส่วนงาน": ["全部部门", "All departments"],
+    "วันนี้ / ที่จะมาถึง": ["今天 / 即将召开", "Today / upcoming"],
+    "ประวัติการประชุม": ["历史会议", "Past meetings"],
+    "กำลังเปิดสแกน": ["签到中", "Open now"],
+    "เปิด QR": ["打开二维码", "Open QR"],
+    "ดูรายชื่อ": ["查看名单", "View list"],
+    "คัดลอกลิงก์": ["复制链接", "Copy link"],
+    "คัดลอกแล้ว": ["已复制", "Copied"],
+    "คัดลอกลิงก์นี้": ["复制此链接", "Copy this link"],
+    "ลิงก์หน้าผู้จัด สำหรับเปิดบนเครื่องฉาย": ["组织者页面链接，用于投屏电脑", "Organizer page link, for the projector computer"],
+    "ยังไม่มีการประชุม สร้างรายการแรกได้จากฟอร์มด้านซ้าย": ["暂无会议，请用左侧表单创建", "No meetings yet. Create one with the form on the left"],
+    "โหลดตารางไม่สำเร็จ": ["日程加载失败", "Could not load the schedule"],
+    "กรุณาเลือกส่วนงานอย่างน้อย 1 ส่วนงาน": ["请至少选择 1 个部门", "Please select at least 1 department"],
+    "เวลาปิดสแกนต้องอยู่หลังเวลาเปิดสแกน": ["结束时间必须晚于开始时间", "Close time must be after open time"],
+    "เวลา \"สายหลัง\" ต้องอยู่ระหว่างเวลาเปิดและปิดสแกน": ["“迟到时间”必须在开始与结束时间之间", "\"Late after\" must be between open and close time"],
+    "กรุณากรอกชื่อและวันที่": ["请填写名称和日期", "Please enter a title and date"],
+    "กรุณากรอกชื่อส่วนงาน": ["请填写部门名称", "Please enter a department name"],
+    "กรุณาระบุชื่อ": ["请填写姓名", "Please enter a name"],
+    "ไม่พบส่วนงานนี้": ["未找到该部门", "Department not found"],
+    "ไม่พบการประชุม": ["未找到会议", "Meeting not found"],
+    "ไม่พบการประชุมนี้": ["未找到该会议", "Meeting not found"],
+    "การประชุมนี้อาจถูกยกเลิกแล้ว": ["该会议可能已取消", "This meeting may have been cancelled"],
+    "ยังไม่เปิดให้เช็คอิน": ["尚未开放签到", "Check-in not open yet"],
+    "ปิดรับเช็คอินแล้ว": ["签到已结束", "Check-in closed"],
+    "QR นี้ใช้เช็คอินไปแล้ว กรุณาสแกนใหม่": ["此二维码已使用，请重新扫描", "This QR was already used. Please scan again"],
+    "QR หมดอายุ กรุณาสแกนใหม่": ["二维码已过期，请重新扫描", "QR expired. Please scan again"],
+    "QR เปลี่ยนใหม่ทุก 1 นาที กรุณาสแกน QR บนจอในห้องประชุมใหม่อีกครั้ง": ["二维码每分钟更新，请重新扫描会议室屏幕上的二维码", "The QR changes every minute. Please scan the QR on the meeting room screen again"],
+    "เชื่อมต่อไม่สำเร็จ": ["连接失败", "Connection failed"],
+    "กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง": ["请检查网络后重试", "Please check your internet and try again"],
+    "บันทึกไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง": ["保存失败，请检查网络后重试", "Could not save. Please check your internet and try again"],
+    "ทำรายการไม่สำเร็จ": ["操作失败", "Action failed"],
+    "ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว": ["组织者链接无效，或会议已删除", "Invalid organizer link, or the meeting was deleted"],
+    "เชื่อมต่อไม่ได้ QR บนจออาจหมดอายุ กำลังลองใหม่...": ["连接中断，屏幕上的二维码可能已过期，正在重试...", "Connection lost. The QR on screen may be expired, retrying..."],
+    "สร้าง QR ไม่สำเร็จ (โหลดไลบรารี QR ไม่ได้)": ["二维码生成失败（无法加载二维码库）", "Could not create the QR (QR library failed to load)"],
+    "QR Code สำหรับเช็คอิน": ["签到二维码", "Check-in QR code"],
+    "ยังไม่ได้เชื่อม Google Sheet": ["尚未连接 Google Sheet", "Google Sheet not connected yet"],
+    "แอปยังอยู่ในโหมดทดลอง ข้อมูลการประชุมอยู่ในเครื่องที่สร้างการประชุมเท่านั้น โทรศัพท์เครื่องอื่นจึงหาไม่เจอ ผู้จัดต้องตั้งค่า Google Sheet และใส่ API_URL ก่อน (ดู README.md)": ["应用仍处于测试模式，会议数据只保存在创建会议的设备上。组织者需先设置 Google Sheet 并填写 API_URL（见 README.md）", "The app is still in test mode, so meeting data lives only on the device that created it. The organizer must set up Google Sheet and API_URL first (see README.md)"],
+    "โหมดทดลอง: ยังไม่ได้ตั้งค่า API_URL ข้อมูลเก็บเฉพาะในเครื่องนี้ มือถือเครื่องอื่นจะส่งข้อมูลเข้ามาไม่ได้ (PIN ทดลอง: 1234)": ["测试模式：尚未设置 API_URL，数据仅保存在本机，其他手机无法签到（测试 PIN：1234）", "Test mode: API_URL not set. Data stays on this device and other phones can't check in (test PIN: 1234)"],
+    "อื่นๆ (ไม่อยู่ในส่วนงานที่เชิญ)": ["其他（不在受邀部门）", "Other (not an invited department)"],
+    "อื่นๆ / Others": ["其他 / Others", "Others"],
+    "การประชุม": ["会议", "Meeting"],
+    "ตำแหน่ง": ["职位", "Position"],
+    "缺席 ไม่มา": ["缺席", "Absent"],
+    "迟到 สาย": ["迟到", "Late"],
+    "จัดการรายชื่อ · Meeting Check-in": ["名单管理 · Meeting Check-in", "Manage names · Meeting Check-in"]
+  };
+  // ข้อความที่มีตัวเลข/ชื่อแทรกอยู่: [รูปแบบ, 中文, English]
+  const PATS = [
+    [/สแกนได้ (\S+)–(\S+) น\./g, "签到时间 $1–$2", "Scan $1–$2"],
+    [/สายหลัง (\d\d:\d\d) น\./g, "$1 后算迟到", "late after $1"],
+    [/^ส่วนงานที่มาแล้ว (\d+) \/ (\d+)$/, "已到部门 $1 / $2", "Departments arrived $1 / $2"],
+    [/^เขียว = มาแล้ว · แดง = มาสาย\/ยังไม่มาหลัง (.+?) น\. · กดที่กล่องเพื่อดูรายชื่อ$/, "绿 = 已到 · 红 = 迟到 / $1 后未到 · 点击方块查看名单", "Green = arrived · Red = late / not here after $1 · Click a box to see names"],
+    [/^มา (\d+) คน$/, "已到 $1 人", "$1 present"],
+    [/^\(สาย (\d+) คน\)$/, "（迟到 $1 人）", "($1 late)"],
+    [/^สาย (\d+)$/, "迟到 $1", "$1 late"],
+    [/^อัปเดตล่าสุด (.+) น\.$/, "最近更新 $1", "Updated $1"],
+    [/^QR เปลี่ยนใหม่ใน (\d+) วินาที$/, "二维码 $1 秒后更新", "QR refreshes in $1 s"],
+    [/^เลยเวลา (.+) น\. แล้ว$/, "已过 $1", "Past $1"],
+    [/^\+ อีก (\d+) คน$/, "+ 另 $1 人", "+ $1 more"],
+    [/^(\d\d:\d\d(?::\d\d)?) น\.$/, "$1", "$1"],
+    [/^ยังไม่เปิดให้เช็คอิน เปิดสแกนวันที่ (\S+) เวลา (\S+) น\.$/, "尚未开放签到，开放时间 $1 $2", "Check-in not open yet. Opens $1 at $2"],
+    [/^ปิดรับเช็คอินแล้ว \(รับถึง (\S+) น\. ของวันที่ (\S+)\)$/, "签到已结束（截止 $2 $1）", "Check-in closed (until $1 on $2)"],
+    [/^([\s\S]+) เช็คอินการประชุมนี้ไปแล้ว ถ้าจะเช็คอินให้คนอื่น พิมพ์ชื่อด้านบน$/, "$1 已签到本次会议。如需为他人签到，请在上方输入姓名", "$1 has already checked in. To check in someone else, type their name above"],
+    [/^สวัสดีค่ะ ([\s\S]+)$/, "您好，$1", "Hello, $1"],
+    [/^พบรายชื่อ (\d+) คน ที่ใส่ไว้ตอนทดสอบในเครื่องนี้ ยังไม่อยู่ใน Google Sheet$/, "在本机发现 $1 个测试时添加的姓名，尚未导入 Google Sheet", "Found $1 names added during testing on this device that aren't in Google Sheet yet"],
+    [/เพิ่มตอนเช็คอิน (\d+) คน \(ตรวจสอบได้\)/, "签到时添加 $1 人（可核对）", "$1 added at check-in (please review)"],
+    [/^(\d+) คน/, "$1 人", "$1 people"],
+    [/^เช็คอิน · ([\s\S]+)$/, "签到 · $1", "Check-in · $1"],
+    [/^ลบ "([\s\S]+)" ออกจาก ([\s\S]+)\?$/, "从 $2 中删除“$1”？", "Remove \"$1\" from $2?"],
+    [/^ลบการประชุม "([\s\S]+)" ออกจากตาราง\?\n\(ประวัติการเช็คอินใน Google Sheet ไม่ถูกลบ\)$/, "从日程中删除会议“$1”？\n（Google Sheet 中的签到记录不会被删除）", "Remove meeting \"$1\" from the schedule?\n(Check-in history in Google Sheet is kept)"],
+    [/^ลบส่วนงาน "([\s\S]+?)" และรายชื่อทั้งหมด (\d+) คน\?\n\(ประวัติการเช็คอินเดิมไม่ถูกลบ\)$/, "删除部门“$1”及其全部 $2 人？\n（以往签到记录不会被删除）", "Delete department \"$1\" and all $2 names?\n(Past check-ins are kept)"],
+    [/^ลบส่วนงาน "([\s\S]+?)"\?\n\(ประวัติการเช็คอินเดิมไม่ถูกลบ\)$/, "删除部门“$1”？\n（以往签到记录不会被删除）", "Delete department \"$1\"?\n(Past check-ins are kept)"],
+    [/^(\d\d:\d\d)–(\d\d:\d\d) น\.$/, "$1–$2", "$1–$2"],
+    [/^เช่น ([\s\S]+)$/, "例如 $1", "e.g. $1"],
+    [/ทุกส่วนงาน/g, "全部部门", "All departments"],
+    [/ตัวอย่าง:/g, "示例:", "Example:"],
+    [/应到 ผู้ต้องเข้า/g, "应到", "Expected"],
+    [/实到 มา/g, "实到", "Present"],
+    [/迟到 สาย/g, "迟到", "Late"],
+    [/缺席 ไม่มา/g, "缺席", "Absent"]
+  ];
+  const HAS_THAI = /[\u0E00-\u0E7F]/;
+  const LI = LANG === "zh" ? 0 : 1;
+  function tr(str){
+    if(LANG === "th" || !str || !HAS_THAI.test(str)) return str;
+    const m = String(str).match(/^(\s*)([\s\S]*?)(\s*)$/);
+    const core = m[2];
+    if(DICT[core]) return m[1] + DICT[core][LI] + m[3];
+    let out = core;
+    for(const [re, zh, en] of PATS){ out = out.replace(re, LI === 0 ? zh : en); if(!HAS_THAI.test(out)) break; }
+    if(HAS_THAI.test(out)) out = out.split(" · ").map(p => DICT[p.trim()] ? DICT[p.trim()][LI] : p).join(" · ");
+    return m[1] + out + m[3];
+  }
+  const SKIP = {SCRIPT: 1, STYLE: 1, TEXTAREA: 1, NOSCRIPT: 1};
+  function trNode(n){
+    if(n.nodeType === 3){
+      if(n.parentNode && SKIP[n.parentNode.nodeName]) return;
+      const v = n.nodeValue, t = tr(v); if(t !== v) n.nodeValue = t;
+    }else if(n.nodeType === 1){
+      for(const a of ["placeholder", "title", "aria-label", "alt"]){
+        if(n.hasAttribute(a)){ const v = n.getAttribute(a), t = tr(v); if(t !== v) n.setAttribute(a, t); }
+      }
+      if(!SKIP[n.nodeName]) n.childNodes.forEach(trNode);
+    }
+  }
+  if(LANG !== "th"){
+    document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
+    trNode(document.documentElement);
+    new MutationObserver(list => list.forEach(mu => {
+      if(mu.type === "characterData") trNode(mu.target);
+      else mu.addedNodes.forEach(trNode);
+    })).observe(document.documentElement, {subtree: true, childList: true, characterData: true});
+    const _confirm = window.confirm.bind(window), _prompt = window.prompt.bind(window);
+    window.confirm = msg => _confirm(tr(msg));
+    window.prompt = (msg, def) => _prompt(tr(msg), def);
+  }
+  // ปุ่มสลับภาษา
+  document.querySelectorAll("#langSw button").forEach(b => {
+    b.classList.toggle("on", b.dataset.l === LANG);
+    b.onclick = () => { try{ localStorage.setItem("lang", b.dataset.l); }catch(e){} location.reload(); };
+  });
+
   const $ = id => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; };
   const show = (id, on) => $(id).classList.toggle("hidden", !on);
@@ -443,8 +674,8 @@ const CONFIG = {
 
   /* ---------- เวลา (เวลาไทย) ---------- */
   const TZ = "Asia/Bangkok";
-  const fmtTime = iso => new Date(iso).toLocaleTimeString("th-TH", {hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false, timeZone:TZ});
-  const fmtDate = d => { if(!d) return ""; const x = new Date(d + "T00:00:00+07:00"); return isNaN(x) ? d : x.toLocaleDateString("th-TH", {weekday:"short", day:"numeric", month:"short", year:"numeric", timeZone:TZ}); };
+  const fmtTime = iso => new Date(iso).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false, timeZone:TZ});
+  const fmtDate = d => { if(!d) return ""; const x = new Date(d + "T00:00:00+07:00"); return isNaN(x) ? d : x.toLocaleDateString(LOCALE, {weekday:"short", day:"numeric", month:"short", year:"numeric", timeZone:TZ}); };
   const at = (d, hm) => new Date(d + "T" + hm + ":00+07:00").getTime();
   const todayStr = () => new Date().toLocaleDateString("en-CA", {timeZone:TZ});
   const isLate = (iso, m) => !!(m.d && m.l) && new Date(iso).getTime() > at(m.d, m.l);
@@ -1031,7 +1262,7 @@ const CONFIG = {
       t.appendChild(tb); sheet.appendChild(t);
       const foot = el("div", "pfoot");
       foot.append(el("span", null, "应到 ผู้ต้องเข้า " + total + " · 实到 มา " + came + " · 迟到 สาย " + late + " · 缺席 ไม่มา " + (total - came)),
-        el("span", null, "Meeting Check-in · " + new Date().toLocaleString("th-TH", {timeZone: TZ})));
+        el("span", null, "Meeting Check-in · " + new Date().toLocaleString(LOCALE, {timeZone: TZ})));
       sheet.appendChild(foot);
       document.title = "Meeting Registration " + m.d + " " + m.t;
       window.print();
