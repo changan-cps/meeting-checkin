@@ -250,6 +250,10 @@ const CONFIG = {
   <section id="viewAdmin" class="hidden">
     <div class="admin">
       <div class="card">
+        <div class="banner hidden" id="importBox" style="margin-bottom:14px">
+          <div id="importMsg"></div>
+          <button class="small" type="button" id="importBtn" style="margin-top:8px">ย้ายเข้า Google Sheet</button>
+        </div>
         <h2>ส่วนงาน</h2>
         <div id="deptList"></div>
         <form class="inline" id="addDeptForm">
@@ -755,7 +759,30 @@ const CONFIG = {
         if(!names.length) return;
         if(await run("addNames", {dept: cur, names})) $("newNames").value = "";
       };
-      run("checkPin");
+      // ย้ายรายชื่อที่ใส่ไว้ตอนโหมดทดลอง (เก็บในเบราว์เซอร์เครื่องนี้) เข้า Google Sheet
+      const demoMembers = API ? store.get("demo_members", []) : [];
+      const offerImport = () => {
+        const have = new Set(db.members.map(x => key(x.dept) + "|" + key(x.name)));
+        const todo = demoMembers.filter(x => x && x.name && !have.has(key(x.dept) + "|" + key(x.name)));
+        show("importBox", todo.length > 0);
+        $("importMsg").textContent = "พบรายชื่อ " + todo.length + " คน ที่ใส่ไว้ตอนทดสอบในเครื่องนี้ ยังไม่อยู่ใน Google Sheet";
+        return todo;
+      };
+      $("importBtn").onclick = async () => {
+        const todo = offerImport(); if(!todo.length) return;
+        $("importBtn").disabled = true; $("importBtn").textContent = "กำลังย้าย...";
+        const byDept = {};
+        todo.forEach(x => { (byDept[x.dept] = byDept[x.dept] || []).push({name: x.name, id: x.id || ""}); });
+        let ok = true;
+        for(const d of Object.keys(byDept)){
+          if(!db.departments.some(x => key(x) === key(d))) ok = await run("addDept", {dept: d}) && ok;
+          ok = await run("addNames", {dept: d, names: byDept[d]}) && ok;
+        }
+        $("importBtn").disabled = false; $("importBtn").textContent = "ย้ายเข้า Google Sheet";
+        if(ok){ store.set("demo_members", []); show("importBox", false); }
+        else offerImport();
+      };
+      run("checkPin").then(() => { if(demoMembers.length) offerImport(); });
     });
   }
 
