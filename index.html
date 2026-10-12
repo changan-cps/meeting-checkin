@@ -16,6 +16,8 @@ const CONFIG = {
   DEFAULT_OPEN: "13:00",   // เปิดให้สแกน
   DEFAULT_LATE: "14:00",   // เช็คอินหลังเวลานี้ = สาย
   DEFAULT_CLOSE: "15:30",  // ปิดรับสแกน
+  // ส่วนงานที่ไม่ต้องแสดงในกล่องสรุป "ส่วนงานที่มาแล้ว" (ยังแสดงในเช็คลิสต์และฟอร์ม)
+  SUMMARY_HIDE: ["CPS team leader", "Deputy Team Leader of CPS Construction Project"],
   // ส่วนงานตั้งต้น ใช้เฉพาะโหมดทดลอง (เมื่อต่อ Google Sheet แล้ว ส่วนงานจริงอยู่ในชีต Departments)
   DEMO_DEPARTMENTS: ["CPS team leader", "Deputy Team Leader of CPS Construction Project", "CPS", "SOS/EOS", "QOS", "DOS", "MOS", "COS", "POS", "Body Workshop", "Paint Workshop", "General Assembly Workshop", "Powertrain Workshop", "KD"]
 };
@@ -843,7 +845,8 @@ const CONFIG = {
     // สรุปรวมตามส่วนงาน: มาแล้วอย่างน้อย 1 คน = เขียว, แสดงจำนวนและชื่อ/ตำแหน่งของคนที่มา
     function renderSummary(groups){
       const box = $("dSum"); box.innerHTML = "";
-      const real = groups.filter(g => !g.dept.startsWith("อื่นๆ"));
+      const hide = new Set((CONFIG.SUMMARY_HIDE || []).map(key));
+      const real = groups.filter(g => !g.dept.startsWith("อื่นๆ") && !hide.has(key(g.dept)));
       if(!real.length) return;
       const covered = real.filter(g => g.rows.some(x => x.r)).length;
       const head = el("div", "sumhead");
