@@ -347,6 +347,8 @@ const CONFIG = {
           <div id="dQr" style="margin-top:14px"></div>
           <div class="countdown"><div class="track"><i id="dBar"></i></div><div class="txt" id="dCd"></div></div>
           <button id="presentBtn" type="button" style="width:100%;margin-top:14px">ฉาย QR เต็มจอ</button>
+          <button id="pipBtn" class="ghost" type="button" style="width:100%;margin-top:8px">QR ลอยบนสไลด์ (ระหว่างเปิด PPT)</button>
+          <div class="hint" id="pipHint">เปิดหน้าต่าง QR เล็ก ๆ ที่ลอยอยู่บนทุกโปรแกรม รวมถึง PowerPoint ตอนฉายสไลด์ ลากไปไว้มุมจอได้</div>
         </div>
         <div class="closedbox hidden" id="dClosed"></div>
         <div class="err hidden" id="dErr"></div>
@@ -601,6 +603,11 @@ const CONFIG = {
     "迟到 สาย": ["迟到", "Late"],
     "จัดการรายชื่อ · Meeting Check-in": ["名单管理 · Meeting Check-in", "Manage names · Meeting Check-in"],
     "กลุ่มส่วนงาน": ["部门分组", "Department groups"],
+    "QR ลอยบนสไลด์ (ระหว่างเปิด PPT)": ["悬浮二维码（放映 PPT 时）", "Floating QR (while showing PPT)"],
+    "เปิดหน้าต่าง QR เล็ก ๆ ที่ลอยอยู่บนทุกโปรแกรม รวมถึง PowerPoint ตอนฉายสไลด์ ลากไปไว้มุมจอได้": ["打开一个始终置顶的小二维码窗口，可覆盖在 PowerPoint 放映之上，可拖到屏幕角落", "Opens a small always-on-top QR window that stays over PowerPoint slideshows. Drag it to a corner"],
+    "ใช้ได้กับ Google Chrome / Microsoft Edge บนคอมพิวเตอร์ ถ้าใช้ไม่ได้ ให้เปิดลิงก์ผู้จัดบนแท็บเล็ตวางหน้าห้องแทน": ["适用于电脑上的 Google Chrome / Microsoft Edge；如不可用，请在平板上打开组织者链接放在门口", "Works in Google Chrome / Microsoft Edge on a computer. If unavailable, open the organizer link on a tablet at the door"],
+    "เบราว์เซอร์นี้ไม่รองรับ QR ลอย กรุณาเปิดหน้านี้ด้วย Google Chrome หรือ Microsoft Edge บนคอมพิวเตอร์ หรือใช้แท็บเล็ต/มือถือเปิดลิงก์ผู้จัดวางไว้หน้าห้องแทน": ["此浏览器不支持悬浮二维码。请用电脑上的 Google Chrome 或 Microsoft Edge 打开本页，或在平板/手机上打开组织者链接放在门口", "This browser doesn't support the floating QR. Open this page in Google Chrome or Microsoft Edge on a computer, or open the organizer link on a tablet/phone at the door"],
+    "เช็คอินแล้ว": ["已签到", "Checked in"],
     "ตั้งกลุ่มไว้ล่วงหน้า เวลาสร้างการประชุมกดชื่อกลุ่ม ระบบจะเลือกส่วนงานทั้งกลุ่มให้ทีเดียว": ["预先设置分组，创建会议时点击分组名称即可一次选中该组所有部门", "Set up groups in advance. When creating a meeting, click a group to select all its departments at once"],
     "สร้างกลุ่มใหม่": ["新建分组", "New group"],
     "แก้ไขกลุ่ม": ["编辑分组", "Edit group"],
@@ -1161,11 +1168,49 @@ const CONFIG = {
     let m = null, records = [], depts = [], members = [], tab = "check";
     let token = "", deadline = 0, qrSec = 60, lastFetch = 0, closed = null, fails = 0;
 
+    // ---- QR ลอยบนสไลด์ (Document Picture-in-Picture: หน้าต่างอยู่บนสุดเสมอ ทับ PowerPoint ได้) ----
+    let pipWin = null;
+    function syncPip(){
+      if(!pipWin) return;
+      const d = pipWin.document, closedNow = !!closed;
+      d.getElementById("qr").innerHTML = closedNow ? "" : $("dQr").innerHTML;
+      d.getElementById("msg").textContent = closedNow ? tr(closed) : "";
+      d.getElementById("cnt").textContent = tr("เช็คอินแล้ว") + " " + records.length + " " + tr("คน");
+      d.getElementById("t").textContent = m ? m.t : "";
+      d.getElementById("track").style.display = closedNow ? "none" : "";
+    }
+    async function openPip(){
+      if(pipWin){ pipWin.focus(); return; }
+      if(!("documentPictureInPicture" in window)){
+        alert(tr("เบราว์เซอร์นี้ไม่รองรับ QR ลอย กรุณาเปิดหน้านี้ด้วย Google Chrome หรือ Microsoft Edge บนคอมพิวเตอร์ หรือใช้แท็บเล็ต/มือถือเปิดลิงก์ผู้จัดวางไว้หน้าห้องแทน"));
+        return;
+      }
+      try{
+        pipWin = await documentPictureInPicture.requestWindow({width: 280, height: 360});
+      }catch(e){ return; }
+      const d = pipWin.document;
+      d.title = "QR · " + (m ? m.t : "");
+      const st = d.createElement("style");
+      st.textContent = "html,body{margin:0;height:100%;background:#fff;font-family:Sarabun,system-ui,sans-serif;color:#12213a}" +
+        "body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;box-sizing:border-box;text-align:center}" +
+        "#t{font-weight:700;font-size:14px;line-height:1.25;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+        "#qr{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}" +
+        "#qr img{max-width:100%;max-height:100%;width:auto;height:100%;image-rendering:pixelated}" +
+        "#track{width:100%;height:5px;background:#dbe2ec;border-radius:3px;overflow:hidden}#bar{height:100%;background:#0b3d91;transition:width .25s linear}" +
+        "#cnt{font-size:13px;color:#5d6b82}#msg{font-weight:600;color:#5d6b82;font-size:14px}";
+      d.head.appendChild(st);
+      d.body.innerHTML = '<div id="t"></div><div id="qr"></div><div id="msg"></div><div id="track"><div id="bar"></div></div><div id="cnt"></div>';
+      pipWin.addEventListener("pagehide", () => { pipWin = null; $("pipBtn").classList.remove("on"); });
+      syncPip();
+    }
+    $("pipBtn").onclick = openPip;
+    if(!("documentPictureInPicture" in window)) $("pipHint").textContent = "ใช้ได้กับ Google Chrome / Microsoft Edge บนคอมพิวเตอร์ ถ้าใช้ไม่ได้ ให้เปิดลิงก์ผู้จัดบนแท็บเล็ตวางหน้าห้องแทน";
+
     function setQr(tok){
       if(tok === token) return;
       token = tok;
       const url = baseUrl + "?" + withApi(new URLSearchParams({m: mid, q: tok})).toString();
-      qrImg($("dQr"), url); qrImg($("pQr"), url);
+      qrImg($("dQr"), url).then(syncPip); qrImg($("pQr"), url);
     }
     function buildGroups(){
       const rec = new Map(records.map(r => [key(r.dept) + "|" + key(r.name), r]));
@@ -1226,6 +1271,7 @@ const CONFIG = {
       $("dCount").textContent = records.length;
       $("dOf").textContent = ""; show("dOf", false);
       $("pCount").textContent = String(records.length);
+      syncPip();
       $("dLate").textContent = late ? "(สาย " + late + " คน)" : "";
       const filter = $("dFilter").value;
       const pass = x => filter === "all" || (filter === "absent" ? !x.r : filter === "present" ? !!x.r : (x.r && isLate(x.r.time, m)));
@@ -1311,6 +1357,7 @@ const CONFIG = {
         const txt = "QR เปลี่ยนใหม่ใน " + Math.ceil(left / 1000) + " วินาที";
         $("dBar").style.width = pct; $("pBar").style.width = pct;
         $("dCd").textContent = txt; $("pCd").textContent = txt;
+        if(pipWin){ const b = pipWin.document.getElementById("bar"); if(b) b.style.width = pct; }
       }
       if(document.hidden && !closed) return;
       if((deadline && now >= deadline + 200 && !closed) || now - lastFetch >= 5000) refresh();
