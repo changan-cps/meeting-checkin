@@ -92,6 +92,10 @@ const CONFIG = {
 
   /* แดชบอร์ด */
   .dash{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+  body.wide main{max-width:none;padding:20px 24px 60px}
+  body.wide .dash{grid-template-columns:minmax(300px,380px) 1fr}
+  body.wide .qrbox{position:sticky;top:16px}
+  body.wide .sumgrid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
   .qrbox{text-align:center}
   .qrbox img{width:100%;max-width:300px;height:auto;image-rendering:pixelated;border:1px solid var(--line);border-radius:10px}
   .countdown{margin:10px auto 0;max-width:300px}
@@ -179,6 +183,14 @@ const CONFIG = {
 
   /* จัดการรายชื่อ */
   .admin{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+  .gpick{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 2px}
+  .gpick .lb{font-size:13px;color:var(--muted);margin-right:2px}
+  .gbtn{background:#fff;color:var(--ink);border:1px dashed #9aa6b8;border-radius:8px;padding:5px 12px;font-size:14px;font-weight:600}
+  .gbtn:hover{background:var(--soft)}
+  .gbtn.on{background:var(--brand);color:#fff;border-style:solid;border-color:var(--brand)}
+  .grow{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .grow .gi{flex:1;min-width:0}
+  .grow .gn{font-weight:700}
   .deptbtn{display:flex;width:100%;justify-content:space-between;align-items:center;background:none;color:var(--ink);border-radius:8px;padding:10px 12px;font-weight:500;text-align:left}
   .deptbtn:hover{background:var(--soft)}
   .deptbtn.on{background:var(--brand-bg);color:var(--brand);font-weight:700}
@@ -259,6 +271,7 @@ const CONFIG = {
             <label>ส่วนงานที่ต้องเข้าประชุม</label>
             <span class="muted"><button type="button" class="link" id="selAll">ทั้งหมด</button> · <button type="button" class="link" id="selNone">ล้าง</button></span>
           </div>
+          <div class="gpick hidden" id="fGroups"></div>
           <div class="chips" id="fDepts"><span class="muted">กำลังโหลด...</span></div>
           <div class="err hidden" id="fErr"></div>
           <button type="submit" id="fSubmit" style="width:100%;margin-top:18px">สร้างการประชุม</button>
@@ -305,6 +318,20 @@ const CONFIG = {
         </form>
         <div id="memberList" style="margin-top:18px"></div>
       </div>
+    </div>
+    <div class="card" style="margin-top:20px">
+      <h2 style="margin-bottom:4px">กลุ่มส่วนงาน</h2>
+      <div class="muted">ตั้งกลุ่มไว้ล่วงหน้า เวลาสร้างการประชุมกดชื่อกลุ่ม ระบบจะเลือกส่วนงานทั้งกลุ่มให้ทีเดียว</div>
+      <div id="groupList" style="margin-top:6px"></div>
+      <form id="groupForm" style="margin-top:14px">
+        <label for="gName" id="gFormTitle">สร้างกลุ่มใหม่</label>
+        <input id="gName" maxlength="60" placeholder="ชื่อกลุ่ม เช่น CPS Weekly" required>
+        <div class="chips" id="gDepts" style="margin-top:10px"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button type="submit">บันทึกกลุ่ม</button>
+          <button type="button" class="ghost hidden" id="gCancel">ยกเลิก</button>
+        </div>
+      </form>
     </div>
     <div class="err hidden" id="adminErr"></div>
   </section>
@@ -572,7 +599,19 @@ const CONFIG = {
     "ตำแหน่ง": ["职位", "Position"],
     "缺席 ไม่มา": ["缺席", "Absent"],
     "迟到 สาย": ["迟到", "Late"],
-    "จัดการรายชื่อ · Meeting Check-in": ["名单管理 · Meeting Check-in", "Manage names · Meeting Check-in"]
+    "จัดการรายชื่อ · Meeting Check-in": ["名单管理 · Meeting Check-in", "Manage names · Meeting Check-in"],
+    "กลุ่มส่วนงาน": ["部门分组", "Department groups"],
+    "ตั้งกลุ่มไว้ล่วงหน้า เวลาสร้างการประชุมกดชื่อกลุ่ม ระบบจะเลือกส่วนงานทั้งกลุ่มให้ทีเดียว": ["预先设置分组，创建会议时点击分组名称即可一次选中该组所有部门", "Set up groups in advance. When creating a meeting, click a group to select all its departments at once"],
+    "สร้างกลุ่มใหม่": ["新建分组", "New group"],
+    "แก้ไขกลุ่ม": ["编辑分组", "Edit group"],
+    "ชื่อกลุ่ม เช่น CPS Weekly": ["分组名称，如 CPS Weekly", "Group name, e.g. CPS Weekly"],
+    "บันทึกกลุ่ม": ["保存分组", "Save group"],
+    "ยกเลิก": ["取消", "Cancel"],
+    "แก้ไข": ["编辑", "Edit"],
+    "ยังไม่มีกลุ่ม": ["暂无分组", "No groups yet"],
+    "เลือกตามกลุ่ม:": ["按分组选择：", "Pick a group:"],
+    "กรุณากรอกชื่อกลุ่ม": ["请填写分组名称", "Please enter a group name"],
+    "มีชื่อกลุ่มนี้แล้ว": ["该分组名称已存在", "A group with this name already exists"]
   };
   // ข้อความที่มีตัวเลข/ชื่อแทรกอยู่: [รูปแบบ, 中文, English]
   const PATS = [
@@ -602,6 +641,7 @@ const CONFIG = {
     [/^ลบส่วนงาน "([\s\S]+?)"\?\n\(ประวัติการเช็คอินเดิมไม่ถูกลบ\)$/, "删除部门“$1”？\n（以往签到记录不会被删除）", "Delete department \"$1\"?\n(Past check-ins are kept)"],
     [/^(\d\d:\d\d)–(\d\d:\d\d) น\.$/, "$1–$2", "$1–$2"],
     [/^เช่น ([\s\S]+)$/, "例如 $1", "e.g. $1"],
+    [/^ลบกลุ่ม "([\s\S]+)"\?$/, "删除分组“$1”？", "Delete group \"$1\"?"],
     [/ทุกส่วนงาน/g, "全部部门", "All departments"],
     [/ตัวอย่าง:/g, "示例:", "Example:"],
     [/应到 ผู้ต้องเข้า/g, "应到", "Expected"],
@@ -707,8 +747,8 @@ const CONFIG = {
     const h = s => { let a = 0xdeadbeef, b = 0x41c6ce57; for(let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); a = Math.imul(a ^ c, 2654435761); b = Math.imul(b ^ c, 1597334677); } a = Math.imul(a ^ (a >>> 16), 2246822507) ^ Math.imul(b ^ (b >>> 13), 3266489909); b = Math.imul(b ^ (b >>> 16), 2246822507) ^ Math.imul(a ^ (a >>> 13), 3266489909); return (4294967296 * (2097151 & b) + (a >>> 0)).toString(36); };
     const hmac = (k, m) => h(k + "|" + m) + h(m + "|" + k);
     const rand = n => { let s = ""; while(s.length < n) s += Math.random().toString(36).slice(2); return s.slice(0, n); };
-    const data = () => ({departments: ld("depts", CONFIG.DEMO_DEPARTMENTS.slice()), members: ld("members", [])});
-    const saveData = db => { sv("depts", db.departments); sv("members", db.members); };
+    const data = () => ({departments: ld("depts", CONFIG.DEMO_DEPARTMENTS.slice()), members: ld("members", []), groups: ld("groups", [])});
+    const saveData = db => { sv("depts", db.departments); sv("members", db.members); sv("groups", db.groups); };
     const findDept = (list, d) => list.find(x => key(x) === key(d)) || null;
     const meetings = () => ld("meetings", []);
     const findM = id => meetings().find(x => x.id === id) || null;
@@ -784,6 +824,15 @@ const CONFIG = {
           });
         }
         if(d.op === "delName") db.members = db.members.filter(x => !(key(x.dept) === key(d.dept) && key(x.name) === key(d.name)));
+        if(d.op === "saveGroup"){
+          const name = norm(d.name); if(!name) return E("input", "กรุณากรอกชื่อกลุ่ม");
+          const kOld = key(d.old || name);
+          if(kOld !== key(name) && db.groups.some(g => key(g.name) === key(name))) return E("input", "มีชื่อกลุ่มนี้แล้ว");
+          const depts = (d.depts || []).map(x => findDept(db.departments, x)).filter(Boolean);
+          const g = db.groups.find(g => key(g.name) === kOld);
+          if(g){ g.name = name; g.depts = depts; } else db.groups.push({name, depts});
+        }
+        if(d.op === "delGroup") db.groups = db.groups.filter(g => key(g.name) !== key(d.name));
         if(d.op === "approveName") db.members.forEach(x => { if(key(x.dept) === key(d.dept) && key(x.name) === key(d.name)) x.src = "ผู้ดูแล"; });
         saveData(db);
         return Object.assign({ok:true}, data());
@@ -868,16 +917,32 @@ const CONFIG = {
       let allDepts = [];
       call("admin", {op:"checkPin", pin}).then(db => {
         allDepts = db.departments;
+        // ปุ่มเลือกตามกลุ่ม
+        const gb = $("fGroups"); gb.innerHTML = "";
+        const groups = (db.groups || []).filter(g => g.depts.length);
+        show("fGroups", groups.length > 0);
+        if(groups.length){
+          gb.appendChild(el("span", "lb", "เลือกตามกลุ่ม:"));
+          groups.forEach(g => {
+            const b = el("button", "gbtn", g.name); b.type = "button"; b.title = g.depts.join(", ");
+            b.onclick = () => {
+              const want = new Set(g.depts.map(key));
+              $("fDepts").querySelectorAll("input").forEach(cb => { cb.checked = want.has(key(cb.value)); cb.parentNode.classList.toggle("on", cb.checked); });
+              gb.querySelectorAll(".gbtn").forEach(x => x.classList.toggle("on", x === b));
+            };
+            gb.appendChild(b);
+          });
+        }
         const box = $("fDepts"); box.innerHTML = "";
         if(!allDepts.length){ box.appendChild(el("span", "muted", "ยังไม่มีส่วนงาน — เพิ่มได้ที่ \"จัดการรายชื่อ\"")); return; }
         allDepts.forEach(d => {
           const lab = el("label", "chip on");
           const cb = el("input"); cb.type = "checkbox"; cb.checked = true; cb.value = d;
-          cb.onchange = () => lab.classList.toggle("on", cb.checked);
+          cb.onchange = () => { lab.classList.toggle("on", cb.checked); $("fGroups").querySelectorAll(".gbtn").forEach(x => x.classList.remove("on")); };
           lab.append(cb, document.createTextNode(d)); box.appendChild(lab);
         });
       }).catch(e => { if(e.code === "pin") relogin(); });
-      const setAll = v => $("fDepts").querySelectorAll("input").forEach(cb => { cb.checked = v; cb.parentNode.classList.toggle("on", v); });
+      const setAll = v => { $("fDepts").querySelectorAll("input").forEach(cb => { cb.checked = v; cb.parentNode.classList.toggle("on", v); }); $("fGroups").querySelectorAll(".gbtn").forEach(x => x.classList.remove("on")); };
       $("selAll").onclick = () => setAll(true);
       $("selNone").onclick = () => setAll(false);
 
@@ -957,13 +1022,15 @@ const CONFIG = {
     document.title = "จัดการรายชื่อ · Meeting Check-in";
     requirePin("จัดการส่วนงานและรายชื่อ", (pin, relogin) => {
       show("viewAdmin", true);
-      let db = {departments: [], members: []}, cur = "";
+      let db = {departments: [], members: [], groups: []}, cur = "", gOld = "";
       async function run(op, data){
         show("adminErr", false);
         try{ db = await call("admin", Object.assign({op, pin}, data || {})); render(); return true; }
         catch(e){ if(e.code === "pin"){ relogin(); return false; } $("adminErr").textContent = e.message; show("adminErr", true); return false; }
       }
       function render(){
+        db.groups = db.groups || [];
+        renderGroups();
         if(!db.departments.some(d => key(d) === key(cur))) cur = db.departments[0] || "";
         const list = $("deptList"); list.innerHTML = "";
         if(!db.departments.length) list.appendChild(el("p", "muted", "ยังไม่มีส่วนงาน"));
@@ -998,6 +1065,49 @@ const CONFIG = {
           r.appendChild(del); box.appendChild(r);
         });
       }
+      // ---- กลุ่มส่วนงาน ----
+      function groupChips(sel){
+        const box = $("gDepts"); box.innerHTML = "";
+        const want = new Set((sel || []).map(key));
+        db.departments.forEach(d => {
+          const lab = el("label", "chip" + (want.has(key(d)) ? " on" : ""));
+          const cb = el("input"); cb.type = "checkbox"; cb.checked = want.has(key(d)); cb.value = d;
+          cb.onchange = () => lab.classList.toggle("on", cb.checked);
+          lab.append(cb, document.createTextNode(d)); box.appendChild(lab);
+        });
+      }
+      function editGroup(g){
+        gOld = g ? g.name : "";
+        $("gFormTitle").textContent = g ? "แก้ไขกลุ่ม" : "สร้างกลุ่มใหม่";
+        $("gName").value = g ? g.name : "";
+        show("gCancel", !!g);
+        groupChips(g ? g.depts : []);
+      }
+      function renderGroups(){
+        const box = $("groupList"); box.innerHTML = "";
+        const groups = db.groups || [];
+        if(!groups.length) box.appendChild(el("p", "muted", "ยังไม่มีกลุ่ม"));
+        groups.forEach(g => {
+          const r = el("div", "grow");
+          const info = el("div", "gi"); info.append(el("div", "gn", g.name), el("div", "muted", g.depts.join(", ") || "–"));
+          const ed = el("button", "ghost small", "แก้ไข"); ed.type = "button"; ed.onclick = () => { editGroup(g); $("gName").focus(); };
+          const del = el("button", "danger small", "ลบ"); del.type = "button";
+          del.onclick = () => { if(confirm("ลบกลุ่ม \"" + g.name + "\"?")) run("delGroup", {name: g.name}).then(ok => { if(ok && key(gOld) === key(g.name)) editGroup(null); }); };
+          r.append(info, ed, del); box.appendChild(r);
+        });
+        if(!$("gDepts").children.length || $("gDepts").children.length !== db.departments.length){
+          const keep = [...$("gDepts").querySelectorAll("input:checked")].map(cb => cb.value);
+          groupChips(keep);
+        }
+      }
+      $("gCancel").onclick = () => editGroup(null);
+      $("groupForm").onsubmit = async ev => {
+        ev.preventDefault();
+        const depts = [...$("gDepts").querySelectorAll("input:checked")].map(cb => cb.value);
+        if(!depts.length){ $("adminErr").textContent = "กรุณาเลือกส่วนงานอย่างน้อย 1 ส่วนงาน"; show("adminErr", true); return; }
+        if(await run("saveGroup", {name: $("gName").value, old: gOld, depts})) editGroup(null);
+      };
+
       $("addDeptForm").onsubmit = async ev => {
         ev.preventDefault();
         const d = norm($("newDept").value); if(!d) return;
@@ -1047,6 +1157,7 @@ const CONFIG = {
   /* ================= แดชบอร์ดการประชุม (ผู้จัด) ================= */
   function showDash(mid, hk){
     show("viewDash", true); show("homeLink", true);
+    document.body.classList.add("wide");   // แดชบอร์ดใช้เต็มความกว้างจอ
     let m = null, records = [], depts = [], members = [], tab = "check";
     let token = "", deadline = 0, qrSec = 60, lastFetch = 0, closed = null, fails = 0;
 

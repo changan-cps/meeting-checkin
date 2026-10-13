@@ -7,6 +7,7 @@
  *   Meetings     — ตารางการประชุม
  *   Departments  — รายชื่อส่วนงาน
  *   Members      — รายชื่อพนักงานแยกตามส่วนงาน (แก้ในชีตโดยตรงได้)
+ *   Groups       — กลุ่มส่วนงาน สำหรับเลือกเร็วตอนสร้างการประชุม (ส่วนงานคั่นด้วย |)
  *   Checkins     — บันทึกการเช็คอินทุกการประชุม
  */
 
@@ -22,6 +23,7 @@ const HEAD = {
   Meetings: ['รหัสประชุม', 'ชื่อประชุม', 'วันที่', 'เปิดสแกน', 'สายหลัง', 'ปิดสแกน', 'ห้อง', 'ส่วนงาน', 'คีย์ผู้จัด', 'สร้างเมื่อ', 'ผู้จัด (Host)'],
   Checkins: ['เวลาเช็คอิน', 'รหัสประชุม', 'ชื่อประชุม', 'ชื่อ', 'ส่วนงาน', 'รหัสการสแกน'],
   Departments: ['ส่วนงาน'],
+  Groups: ['กลุ่ม', 'ส่วนงาน (คั่นด้วย |)'],
   Members: ['ส่วนงาน', 'ชื่อ', 'ที่มา', 'วันที่เพิ่ม', 'รหัสพนักงาน', 'ตำแหน่ง']
 };
 const SRC_AUTO = 'เพิ่มตอนเช็คอิน';
@@ -76,7 +78,10 @@ function getData_() {
   const members = rows_(sheet_('Members'), 6)
     .filter(function (r) { return String(r[0]).trim() && String(r[1]).trim(); })
     .map(function (r) { return { dept: String(r[0]).trim(), name: String(r[1]).trim(), src: String(r[2] || ''), id: String(r[4] || '').trim(), pos: String(r[5] || '').trim() }; });
-  return { departments: departments, members: members };
+  const groups = rows_(sheet_('Groups'), 2)
+    .filter(function (r) { return String(r[0]).trim(); })
+    .map(function (r) { return { name: String(r[0]).trim(), depts: String(r[1] || '').split('|').map(function (x) { return x.trim(); }).filter(Boolean) }; });
+  return { departments: departments, members: members, groups: groups };
 }
 function findDept_(departments, dept) {
   const k = key_(dept);
@@ -335,6 +340,27 @@ function admin_(data) {
       rows_(sh, 3).forEach(function (r, i) {
         if (key_(r[0]) === kd && key_(r[1]) === kn) sh.getRange(i + 2, 3).setValue(SRC_ADMIN);
       });
+      break;
+    }
+
+    case 'saveGroup': { // สร้าง/แก้กลุ่มส่วนงาน (old = ชื่อเดิมเมื่อเปลี่ยนชื่อ)
+      const name = clean_(data.name, 60);
+      if (!name) return err_('input', 'กรุณากรอกชื่อกลุ่ม');
+      const depts = (data.depts || []).map(function (d) { return findDept_(db.departments, d); }).filter(Boolean);
+      const sh = sheet_('Groups');
+      const kOld = key_(data.old || name), kNew = key_(name);
+      if (kOld !== kNew && db.groups.some(function (g) { return key_(g.name) === kNew; })) return err_('input', 'มีชื่อกลุ่มนี้แล้ว');
+      const rows = rows_(sh, 1);
+      let found = -1;
+      rows.forEach(function (r, i) { if (found < 0 && key_(r[0]) === kOld) found = i; });
+      if (found >= 0) sh.getRange(found + 2, 1, 1, 2).setValues([[name, depts.join('|')]]);
+      else sh.appendRow([name, depts.join('|')]);
+      break;
+    }
+
+    case 'delGroup': {
+      const k = key_(data.name);
+      deleteWhere_(sheet_('Groups'), 1, function (r) { return key_(r[0]) === k; });
       break;
     }
 
