@@ -28,6 +28,8 @@ const HEAD = {
 };
 const SRC_AUTO = 'เพิ่มตอนเช็คอิน';
 const SRC_ADMIN = 'ผู้ดูแล';
+const SRC_HOST = 'เพิ่มโดยผู้จัด';
+const TID_MANUAL = 'manual';   // รหัสการสแกนของการเช็คอินที่ผู้จัดกรอกเอง
 
 /* ---------- helpers ---------- */
 function sheet_(name) {
@@ -150,13 +152,13 @@ function doGet() {
 }
 
 /* ---------- POST ---------- */
-const WRITE_ACTIONS = ['checkin', 'admin', 'createMeeting', 'deleteMeeting'];
+const WRITE_ACTIONS = ['checkin', 'admin', 'createMeeting', 'deleteMeeting', 'hostCheckin', 'hostUncheck'];
 function doPost(e) {
   let lock = null;
   try {
     const data = JSON.parse(e.postData.contents);
     if (WRITE_ACTIONS.indexOf(data.action) >= 0) { lock = LockService.getScriptLock(); lock.waitLock(20000); }
-    const fn = { host: host_, claim: claim_, checkin: checkin_, admin: admin_, meetings: meetings_, createMeeting: createMeeting_, deleteMeeting: deleteMeeting_ }[data.action];
+    const fn = { host: host_, claim: claim_, checkin: checkin_, admin: admin_, meetings: meetings_, createMeeting: createMeeting_, deleteMeeting: deleteMeeting_, hostCheckin: hostCheckin_, hostUncheck: hostUncheck_ }[data.action];
     return json_(fn ? fn(data) : err_('action', 'unknown action'));
   } catch (err) {
     return json_({ ok: false, error: String(err) });
@@ -213,10 +215,39 @@ function host_(data) {
   const db = getData_();
   return {
     ok: true, meeting: pub_(mt), departments: invited_(mt, db), members: db.members,
-    records: readCheckins_(mt.id).map(function (r) { return { time: r.time, name: r.name, dept: r.dept }; }),
+    records: readCheckins_(mt.id).map(function (r) { return { time: r.time, name: r.name, dept: r.dept, manual: r.tid === TID_MANUAL }; }),
     token: qrToken_(mt, slot), msLeft: (slot + 1) * QR_SECONDS * 1000 - now, qrSeconds: QR_SECONDS,
     closed: windowError_(mt, now), serverTime: now
   };
+}
+
+// ผู้จัดเช็คอินแทน (คนที่มาทีหลัง/ลืมสแกน) — ใช้คีย์ผู้จัด ไม่ติดช่วงเวลาสแกน
+// {action:'hostCheckin', m, k, dept, name, time:'HH:MM' (ไม่ใส่ = เวลาปัจจุบัน)}
+function hostCheckin_(data) {
+  const mt = findMeeting_(data.m);
+  if (!mt || String(data.k || '') !== mt.k) return err_('key', 'ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว');
+  let name = clean_(data.name, 80);
+  if (!name) return err_('input', 'กรุณาระบุชื่อ');
+  const db = getData_();
+  const dept = findDept_(db.departments, clean_(data.dept, 60));
+  if (!dept) return err_('input', 'ไม่พบส่วนงานนี้');
+  const member = db.members.filter(function (x) { return key_(x.dept) === key_(dept) && key_(x.name) === key_(name); })[0];
+  if (member) name = member.name;
+  const exists = readCheckins_(mt.id).some(function (r) { return key_(r.dept) === key_(dept) && key_(r.name) === key_(name); });
+  if (!exists) {
+    const at = /^\d{2}:\d{2}$/.test(data.time || '') ? new Date(at_(mt.d, data.time)) : new Date();
+    if (!member) sheet_('Members').appendRow([dept, name, SRC_HOST, new Date()]);
+    sheet_('Checkins').appendRow([at, mt.id, mt.t, name, dept, TID_MANUAL]);
+  }
+  return host_(data);
+}
+// ผู้จัดยกเลิกการเช็คอิน (กรณีกรอกผิด) {action:'hostUncheck', m, k, dept, name}
+function hostUncheck_(data) {
+  const mt = findMeeting_(data.m);
+  if (!mt || String(data.k || '') !== mt.k) return err_('key', 'ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว');
+  const kd = key_(data.dept), kn = key_(data.name);
+  deleteWhere_(sheet_('Checkins'), 5, function (r) { return String(r[1]) === mt.id && key_(r[4]) === kd && key_(r[3]) === kn; });
+  return host_(data);
 }
 
 // ผู้เข้าร่วมสแกน QR -> ตรวจ QR แล้วออกตั๋วใช้ครั้งเดียว

@@ -141,7 +141,15 @@ const CONFIG = {
   .bar2{height:6px;background:#dbe2ec;border-radius:3px;overflow:hidden;width:90px}
   .bar2 i{display:block;height:100%;background:var(--ok)}
   #dCheck table{table-layout:fixed}
-  #dCheck td:nth-child(1){width:36px} #dCheck td:nth-child(3){width:100px} #dCheck td:nth-child(4){width:110px;text-align:right}
+  #dCheck td:nth-child(1){width:36px} #dCheck td:nth-child(3){width:150px} #dCheck td:nth-child(4){width:90px;text-align:right} #dCheck td:nth-child(5){width:120px;text-align:right}
+  .mtag{display:inline-block;font-size:11px;font-weight:600;color:var(--brand);background:var(--brand-bg);border-radius:6px;padding:0 6px;margin-left:6px}
+  .act{background:none;border:1px solid #c5cedb;color:var(--brand);font-size:12.5px;padding:3px 9px;border-radius:7px;font-weight:600}
+  .act:hover{background:var(--soft)}
+  .act.x{color:var(--muted);border-color:transparent;font-size:15px;padding:2px 7px}
+  .act.x:hover{color:var(--bad);background:var(--bad-bg)}
+  .modal{position:fixed;inset:0;background:rgba(18,33,58,.45);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}
+  .modal .card{width:100%;max-width:420px}
+  .modal .nmfixed{font-weight:700;font-size:17px;padding:4px 0}
   .mark{text-align:center;font-weight:700}
   .mark.y{color:var(--ok)} .mark.n{color:#b8c2d1}
 
@@ -370,7 +378,8 @@ const CONFIG = {
           </select>
           <span class="sp"></span>
           <button class="ghost small" id="refreshBtn" type="button">รีเฟรช</button>
-          <button class="ghost small" id="csvBtn" type="button">ดาวน์โหลด Excel (CSV)</button>
+          <button class="ghost small" id="manualBtn" type="button">+ เช็คอินแทน</button>
+          <button class="ghost small" id="csvBtn" type="button">ดาวน์โหลด Excel</button>
           <button class="small" id="printBtn" type="button">พิมพ์ฟอร์ม / PDF</button>
         </div>
         <div id="dCheck"></div>
@@ -384,6 +393,29 @@ const CONFIG = {
       </div>
     </div>
   </section>
+
+  <div id="mModal" class="modal hidden">
+    <div class="card">
+      <h2 style="margin-bottom:4px">เช็คอินแทน</h2>
+      <div class="muted">สำหรับคนที่มาทีหลังหรือลืมสแกน ระบบจะบันทึกว่าผู้จัดเป็นคนเพิ่ม</div>
+      <form id="mForm" autocomplete="off">
+        <label for="mDept">ส่วนงาน</label>
+        <select id="mDept" required></select>
+        <label for="mName">ชื่อ</label>
+        <input id="mName" maxlength="80" list="mNames" required>
+        <datalist id="mNames"></datalist>
+        <div class="nmfixed hidden" id="mNameFixed"></div>
+        <label for="mTime">เวลาที่มาถึง</label>
+        <input id="mTime" type="time" required>
+        <div class="hint">หลังเวลา "สายหลัง" จะนับเป็นสาย</div>
+        <div class="err hidden" id="mErr"></div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button type="submit" id="mSave" style="flex:1">บันทึก</button>
+          <button type="button" class="ghost" id="mCancel">ยกเลิก</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div id="present" class="hidden">
     <button class="ghost close" id="presentClose" type="button">ปิด</button>
@@ -603,6 +635,16 @@ const CONFIG = {
     "迟到 สาย": ["迟到", "Late"],
     "จัดการรายชื่อ · Meeting Check-in": ["名单管理 · Meeting Check-in", "Manage names · Meeting Check-in"],
     "กลุ่มส่วนงาน": ["部门分组", "Department groups"],
+    "+ เช็คอินแทน": ["+ 补签", "+ Manual check-in"],
+    "เช็คอินแทน": ["补签", "Check in"],
+    "ดาวน์โหลด Excel": ["下载 Excel", "Download Excel"],
+    "สำหรับคนที่มาทีหลังหรือลืมสแกน ระบบจะบันทึกว่าผู้จัดเป็นคนเพิ่ม": ["用于迟到或忘记扫码的人员，系统会记录为组织者补签", "For people who arrived late or forgot to scan. It will be recorded as added by the organizer"],
+    "เวลาที่มาถึง": ["到达时间", "Arrival time"],
+    "หลังเวลา \"สายหลัง\" จะนับเป็นสาย": ["超过“迟到时间”记为迟到", "After the \"Late after\" time counts as late"],
+    "บันทึก": ["保存", "Save"],
+    "ผู้จัดเพิ่ม": ["补签", "manual"],
+    "ยกเลิกการเช็คอิน": ["取消签到", "Undo check-in"],
+    "补签 ผู้จัดเพิ่ม": ["补签", "Manual"],
     "QR ลอยบนสไลด์ (ระหว่างเปิด PPT)": ["悬浮二维码（放映 PPT 时）", "Floating QR (while showing PPT)"],
     "เปิดหน้าต่าง QR เล็ก ๆ ที่ลอยอยู่บนทุกโปรแกรม รวมถึง PowerPoint ตอนฉายสไลด์ ลากไปไว้มุมจอได้": ["打开一个始终置顶的小二维码窗口，可覆盖在 PowerPoint 放映之上，可拖到屏幕角落", "Opens a small always-on-top QR window that stays over PowerPoint slideshows. Drag it to a corner"],
     "ใช้ได้กับ Google Chrome / Microsoft Edge บนคอมพิวเตอร์ ถ้าใช้ไม่ได้ ให้เปิดลิงก์ผู้จัดบนแท็บเล็ตวางหน้าห้องแทน": ["适用于电脑上的 Google Chrome / Microsoft Edge；如不可用，请在平板上打开组织者链接放在门口", "Works in Google Chrome / Microsoft Edge on a computer. If unavailable, open the organizer link on a tablet at the door"],
@@ -649,6 +691,8 @@ const CONFIG = {
     [/^(\d\d:\d\d)–(\d\d:\d\d) น\.$/, "$1–$2", "$1–$2"],
     [/^เช่น ([\s\S]+)$/, "例如 $1", "e.g. $1"],
     [/^ลบกลุ่ม "([\s\S]+)"\?$/, "删除分组“$1”？", "Delete group \"$1\"?"],
+    [/^ยกเลิกการเช็คอินของ "([\s\S]+)"\?$/, "取消“$1”的签到？", "Undo check-in for \"$1\"?"],
+    [/补签 ผู้จัดเพิ่ม/g, "补签", "Manual"],
     [/ทุกส่วนงาน/g, "全部部门", "All departments"],
     [/ตัวอย่าง:/g, "示例:", "Example:"],
     [/应到 ผู้ต้องเข้า/g, "应到", "Expected"],
@@ -779,11 +823,29 @@ const CONFIG = {
         return {ok:true, meeting: m};
       },
       deleteMeeting(d){ if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง"); sv("meetings", meetings().filter(x => x.id !== d.m)); return {ok:true, meetings: counts(meetings())}; },
+      hostCheckin(d){
+        const m = findM(d.m); if(!m || d.k !== m.k) return E("key", "ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว");
+        let name = norm(d.name).slice(0, 80); if(!name) return E("input", "กรุณาระบุชื่อ");
+        const db = data(), dept = findDept(db.departments, d.dept); if(!dept) return E("input", "ไม่พบส่วนงานนี้");
+        const mem = db.members.find(x => key(x.dept) === key(dept) && key(x.name) === key(name)); if(mem) name = mem.name;
+        const all = checkins();
+        if(!all.some(r => r.m === m.id && key(r.dept) === key(dept) && key(r.name) === key(name))){
+          const t = /^\d\d:\d\d$/.test(d.time || "") ? new Date(at(m.d, d.time)) : new Date();
+          if(!mem){ db.members.push({dept, name, src:"เพิ่มโดยผู้จัด"}); saveData(db); }
+          all.push({time: t.toISOString(), m: m.id, t: m.t, name, dept, tid: "manual"}); sv("checkins", all);
+        }
+        return A.host(d);
+      },
+      hostUncheck(d){
+        const m = findM(d.m); if(!m || d.k !== m.k) return E("key", "ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว");
+        sv("checkins", checkins().filter(r => !(r.m === m.id && key(r.dept) === key(d.dept) && key(r.name) === key(d.name))));
+        return A.host(d);
+      },
       host(d){
         const m = findM(d.m); if(!m || d.k !== m.k) return E("key", "ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว");
         const now = Date.now(), s = slot(now), db = data();
         return {ok:true, meeting: pub(m), departments: invited(m, db), members: db.members,
-          records: checkins().filter(r => r.m === m.id).map(r => ({time:r.time, name:r.name, dept:r.dept})),
+          records: checkins().filter(r => r.m === m.id).map(r => ({time:r.time, name:r.name, dept:r.dept, manual: r.tid === "manual"})),
           token: qtok(m, s), msLeft: (s + 1) * QR_S * 1000 - now, qrSeconds: QR_S, closed: windowError(m, now), serverTime: now};
       },
       claim(d){
@@ -1295,8 +1357,14 @@ const CONFIG = {
             const nm = el("td", null, x.name + (g.dept.startsWith("อื่นๆ") ? " (" + x.dept + ")" : ""));
             const p = posOf(x.dept, x.name); if(p) nm.appendChild(el("span", "pos", p));
             tr.appendChild(nm);
-            tr.appendChild(el("td", "muted", x.r ? fmtTime(x.r.time) : "–"));
+            const tm = el("td", "muted", x.r ? fmtTime(x.r.time) : "–");
+            if(x.r && x.r.manual) tm.appendChild(el("span", "mtag", "ผู้จัดเพิ่ม"));
+            tr.appendChild(tm);
             const [c, label] = statusOf(x.r); const td = el("td"); td.appendChild(el("span", "pill " + c, label)); tr.appendChild(td);
+            const ac = el("td");
+            if(!x.r){ const b = el("button", "act", "เช็คอินแทน"); b.type = "button"; b.onclick = () => openManual(x.dept, x.name); ac.appendChild(b); }
+            else { const b = el("button", "act x", "✕"); b.type = "button"; b.title = "ยกเลิกการเช็คอิน"; b.onclick = () => undoCheckin(x.dept, x.name); ac.appendChild(b); }
+            tr.appendChild(ac);
             tb.appendChild(tr); shown++;
           });
           t.appendChild(tb); const w = el("div", "tablewrap"); w.appendChild(t); sec.appendChild(w);
@@ -1376,11 +1444,70 @@ const CONFIG = {
     $("presentClose").onclick = () => show("present", false);
     document.addEventListener("keydown", e => { if(e.key === "Escape") show("present", false); });
 
+    // ---- ผู้จัดเช็คอินแทน (คนมาทีหลัง/ลืมสแกน) ----
+    let mFixed = "";
+    const hhmm = d => d.toLocaleTimeString("en-GB", {timeZone: TZ, hour: "2-digit", minute: "2-digit"});
+    function fillNames(){
+      const dl = $("mNames"); dl.innerHTML = "";
+      const done = new Set(records.map(r => key(r.dept) + "|" + key(r.name)));
+      members.filter(x => key(x.dept) === key($("mDept").value) && !done.has(key(x.dept) + "|" + key(x.name)))
+        .sort((a, b) => byThai(a.name, b.name)).forEach(x => { const o = el("option"); o.value = x.name; dl.appendChild(o); });
+    }
+    function openManual(dept, name){
+      if(!m) return;
+      fillSelect($("mDept"), "-- เลือกส่วนงาน --", depts);
+      $("mDept").value = dept || ""; $("mDept").disabled = !!name;
+      mFixed = name || "";
+      show("mName", !name); show("mNameFixed", !!name); $("mNameFixed").textContent = name || "";
+      $("mName").required = !name; $("mName").value = "";
+      $("mTime").value = todayStr() === m.d ? hhmm(new Date()) : (m.l || m.s || "");
+      show("mErr", false); fillNames(); show("mModal", true);
+      setTimeout(() => (name ? $("mTime") : (dept ? $("mName") : $("mDept"))).focus(), 30);
+    }
+    $("mDept").onchange = fillNames;
+    $("mCancel").onclick = () => show("mModal", false);
+    $("mModal").onclick = e => { if(e.target === $("mModal")) show("mModal", false); };
+    $("manualBtn").onclick = () => openManual("", "");
+    $("mForm").onsubmit = async ev => {
+      ev.preventDefault();
+      const dept = $("mDept").value, name = norm(mFixed || $("mName").value);
+      if(!dept || !name) return;
+      $("mSave").disabled = true;
+      try{
+        await call("hostCheckin", {m: mid, k: hk, dept, name, time: $("mTime").value});
+        show("mModal", false); lastFetch = 0; await refresh();
+      }catch(e){ $("mErr").textContent = e.message; show("mErr", true); }
+      $("mSave").disabled = false;
+    };
+    async function undoCheckin(dept, name){
+      if(!confirm("ยกเลิกการเช็คอินของ \"" + name + "\"?")) return;
+      try{ await call("hostUncheck", {m: mid, k: hk, dept, name}); await refresh(); }
+      catch(e){ $("dErr").textContent = e.message; show("dErr", true); }
+    }
+
+    // ---- ข้อมูลฟอร์ม 会议登记 ใช้ร่วมกันทั้ง PDF และ Excel ----
+    function formData(){
+      const idOf = new Map(members.map(x => [key(x.dept) + "|" + key(x.name), x.id || ""]));
+      const out = {groups: [], total: 0, came: 0, late: 0};
+      buildGroups().forEach(g => {
+        const rows = (g.rows.length ? g.rows : [null]).map(x => {
+          if(!x) return null;
+          out.total++;
+          const isL = x.r && isLate(x.r.time, m); if(x.r) out.came++; if(isL) out.late++;
+          const rem = [];
+          if(!x.r) rem.push("缺席 ไม่มา"); else if(isL) rem.push("迟到 สาย");
+          if(x.r && x.r.manual) rem.push("补签 ผู้จัดเพิ่ม");
+          return {name: x.name, id: idOf.get(key(x.dept) + "|" + key(x.name)) || "", signed: x.r ? "✓ " + fmtTime(x.r.time).slice(0, 5) : "", remark: rem.join(" · ")};
+        });
+        out.groups.push({dept: g.dept.startsWith("อื่นๆ") ? "อื่นๆ / Others" : g.dept, rows});
+      });
+      return out;
+    }
+
     // แบบฟอร์ม 会议登记 Meeting Registration (พิมพ์ หรือ บันทึกเป็น PDF)
     $("printBtn").onclick = () => {
       if(!m) return;
-      const idOf = new Map(members.map(x => [key(x.dept) + "|" + key(x.name), x.id || ""]));
-      const groups = buildGroups();
+      const fd = formData();
       const sheet = $("printSheet"); sheet.innerHTML = "";
       const td = (text, cls, attrs) => { const c = el("td", cls, text); Object.assign(c, attrs || {}); return c; };
       const th = (zh, en) => { const c = el("th"); c.append(zh + " " + en); return c; };
@@ -1401,25 +1528,20 @@ const CONFIG = {
       const thead = el("thead"); const hr = el("tr");
       hr.append(th("序号", ""), th("部门", "Dept."), th("姓名", "Name"), th("工号", "ID"), th("签到", "Signed"), th("备注", "Remarks"));
       thead.appendChild(hr); t.appendChild(thead);
-      const tb = el("tbody"); let no = 0, came = 0, late = 0, total = 0;
-      groups.forEach(g => {
-        const rows = g.rows.length ? g.rows : [null];   // ส่วนงานที่ยังไม่มีรายชื่อ เว้นบรรทัดว่างไว้ 1 บรรทัด
-        rows.forEach((x, i) => {
+      const tb = el("tbody"); let no = 0;
+      fd.groups.forEach(g => {
+        g.rows.forEach((x, i) => {   // ส่วนงานที่ยังไม่มีรายชื่อ เว้นบรรทัดว่างไว้ 1 บรรทัด
           const tr = el("tr"); no++;
           tr.appendChild(td(String(no), "c"));
-          if(i === 0) tr.appendChild(td(g.dept.startsWith("อื่นๆ") ? "อื่นๆ / Others" : g.dept, "dept", {rowSpan: rows.length}));
+          if(i === 0) tr.appendChild(td(g.dept, "dept", {rowSpan: g.rows.length}));
           if(!x){ tr.append(td(""), td(""), td(""), td("")); tb.appendChild(tr); return; }
-          total++;
-          const isL = x.r && isLate(x.r.time, m); if(x.r) came++; if(isL) late++;
-          tr.append(td(x.name), td(idOf.get(key(x.dept) + "|" + key(x.name)) || "", "c"),
-            td(x.r ? "✓ " + fmtTime(x.r.time).slice(0, 5) : "", "c"),
-            td(!x.r ? "缺席 ไม่มา" : isL ? "迟到 สาย" : "", "c"));
+          tr.append(td(x.name), td(x.id, "c"), td(x.signed, "c"), td(x.remark, "c"));
           tb.appendChild(tr);
         });
       });
       t.appendChild(tb); sheet.appendChild(t);
       const foot = el("div", "pfoot");
-      foot.append(el("span", null, "应到 ผู้ต้องเข้า " + total + " · 实到 มา " + came + " · 迟到 สาย " + late + " · 缺席 ไม่มา " + (total - came)),
+      foot.append(el("span", null, "应到 ผู้ต้องเข้า " + fd.total + " · 实到 มา " + fd.came + " · 迟到 สาย " + fd.late + " · 缺席 ไม่มา " + (fd.total - fd.came)),
         el("span", null, "Meeting Check-in · " + new Date().toLocaleString(LOCALE, {timeZone: TZ})));
       sheet.appendChild(foot);
       document.title = "Meeting Registration " + m.d + " " + m.t;
@@ -1427,8 +1549,75 @@ const CONFIG = {
       setTimeout(() => { document.title = m.t + " · Check-in"; }, 1000);
     };
 
-    $("csvBtn").onclick = () => {
+    // ---- Excel (.xlsx) หน้าตาเหมือนฟอร์ม PDF ----
+    let xlLoading = null;
+    const ensureExcel = () => window.ExcelJS ? Promise.resolve() : (xlLoading = xlLoading || new Promise((ok, fail) => {
+      const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
+      s.onload = ok; s.onerror = () => { xlLoading = null; fail(new Error("load")); }; document.head.appendChild(s);
+    }));
+    async function downloadXlsx(){
+      await ensureExcel();
+      const fd = formData();
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Meeting Registration", {
+        pageSetup: {paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true,
+          margins: {left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2}}
+      });
+      ws.columns = [{width: 7}, {width: 26}, {width: 30}, {width: 19}, {width: 12}, {width: 18}];
+      const thin = {style: "thin", color: {argb: "FF000000"}};
+      const box = {top: thin, left: thin, bottom: thin, right: thin};
+      const font = (o) => Object.assign({name: "Microsoft YaHei", size: 10}, o || {});
+      const put = (addr, v, o) => { const c = ws.getCell(addr); c.value = v; c.font = font(o && o.font); c.border = box;
+        c.alignment = Object.assign({vertical: "middle", wrapText: true, horizontal: "left"}, o && o.align); if(o && o.fill) c.fill = {type: "pattern", pattern: "solid", fgColor: {argb: o.fill}}; return c; };
+      // เส้นขอบต้องใส่ทุกช่องในช่วงที่รวม ไม่อย่างนั้น Excel จะแสดงเส้นไม่ครบ
+      const borderRange = range => { const [a, b] = range.split(":"); const c1 = ws.getCell(a), c2 = ws.getCell(b || a);
+        for(let r = c1.row; r <= c2.row; r++) for(let c = c1.col; c <= c2.col; c++) ws.getCell(r, c).border = box; };
+      const merge = (range, v, o) => { borderRange(range); ws.mergeCells(range); put(range.split(":")[0], v, o); };
+      // หัวฟอร์ม
+      merge("A1:F1", {richText: [{text: "会议登记\n", font: font({size: 15, bold: true})}, {text: "Meeting Registration", font: font({size: 13, bold: true})}]}, {align: {horizontal: "center"}});
+      ws.getRow(1).height = 42;
+      merge("A2:B3", "培训主题 Topic"); merge("C2:C3", m.t, {font: {bold: true}});
+      put("D2", "日期 Date"); merge("E2:F2", m.d.replace(/-/g, "/"));
+      put("D3", "时间 Time"); merge("E3:F3", m.l || m.s || "");
+      merge("A4:B4", "主持人 Host"); put("C4", m.h || ""); put("D4", "地点 Location"); merge("E4:F4", m.r || "");
+      [2, 3, 4].forEach(r => ws.getRow(r).height = 20);
+      // หัวตาราง
+      ["序号", "部门 Dept.", "姓名 Name", "工号 ID", "签到 Signed", "备注 Remarks"].forEach((h, i) =>
+        put(String.fromCharCode(65 + i) + "5", h, {font: {bold: true}, align: {horizontal: "center"}, fill: "FFEEF2F8"}));
+      ws.getRow(5).height = 22;
+      // รายชื่อ
+      let r = 6, no = 0;
+      fd.groups.forEach(g => {
+        const start = r;
+        g.rows.forEach(x => {
+          no++;
+          put("A" + r, no, {align: {horizontal: "center"}});
+          put("C" + r, x ? x.name : ""); put("D" + r, x ? x.id : "", {align: {horizontal: "center"}});
+          put("E" + r, x ? x.signed : "", {align: {horizontal: "center"}, font: x && x.signed ? {color: {argb: "FF12805C"}, bold: true} : null});
+          put("F" + r, x ? tr(x.remark) : "", {align: {horizontal: "center"}, font: x && x.remark && !x.signed ? {color: {argb: "FFB42318"}} : (x && /迟到/.test(x.remark) ? {color: {argb: "FFB45309"}} : null)});
+          ws.getRow(r).height = 19; r++;
+        });
+        borderRange("B" + start + ":B" + (r - 1));
+        if(r - 1 > start) ws.mergeCells("B" + start + ":B" + (r - 1));
+        put("B" + start, g.dept, {align: {vertical: "middle"}});
+      });
+      // สรุปท้ายฟอร์ม
+      borderRange("A" + r + ":F" + r); ws.mergeCells("A" + r + ":F" + r);
+      const sum = ws.getCell("A" + r);
+      sum.value = tr("应到 ผู้ต้องเข้า " + fd.total + " · 实到 มา " + fd.came + " · 迟到 สาย " + fd.late + " · 缺席 ไม่มา " + (fd.total - fd.came));
+      sum.font = font({bold: true}); sum.alignment = {horizontal: "left", vertical: "middle"}; sum.border = box; ws.getRow(r).height = 20;
+      ws.pageSetup.printArea = "A1:F" + r;
+      ws.headerFooter.oddFooter = "&L&8Meeting Check-in&R&8&P / &N";
+      const buf = await wb.xlsx.writeBuffer();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([buf], {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+      a.download = "Meeting_Registration_" + (m.d || "") + "_" + m.t.replace(/[\\/:*?"<>|\s]+/g, "_") + ".xlsx";
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+    $("csvBtn").onclick = async () => {
       if(!m) return;
+      const b = $("csvBtn"); b.disabled = true;
+      try{ await downloadXlsx(); b.disabled = false; return; }catch(e){ b.disabled = false; }   // โหลดไลบรารี Excel ไม่ได้ -> ดาวน์โหลดเป็น CSV แทน
       const cell = v => { let s = String(v == null ? "" : v); if(/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
       const rows = [["ส่วนงาน", "ชื่อ", "ตำแหน่ง", "เวลาเช็คอิน", "สถานะ", "การประชุม", "วันที่", "สายหลัง"]];
       buildGroups().forEach(g => g.rows.forEach(x => rows.push([x.dept, x.name, posOf(x.dept, x.name), x.r ? fmtTime(x.r.time) : "", statusOf(x.r)[1], m.t, m.d, m.l])));
