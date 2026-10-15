@@ -141,7 +141,12 @@ const CONFIG = {
   .bar2{height:6px;background:#dbe2ec;border-radius:3px;overflow:hidden;width:90px}
   .bar2 i{display:block;height:100%;background:var(--ok)}
   #dCheck table{table-layout:fixed}
-  #dCheck td:nth-child(1){width:36px} #dCheck td:nth-child(3){width:150px} #dCheck td:nth-child(4){width:90px;text-align:right} #dCheck td:nth-child(5){width:120px;text-align:right}
+  #dCheck td:nth-child(1){width:36px} #dCheck td:nth-child(3){width:150px} #dCheck td:nth-child(4){width:90px;text-align:right} #dCheck td:nth-child(5){width:56px;text-align:right} #dCheck td:nth-child(6){width:150px;text-align:right}
+  .pill.leave{background:#ece9fb;color:#5b45b8}
+  .sc{font-weight:700;font-variant-numeric:tabular-nums}
+  .sc.p{color:var(--ok)} .sc.n{color:var(--bad)} .sc.z{color:var(--muted)}
+  .act + .act{margin-left:4px}
+  .dsc{font-weight:700;margin-left:8px}
   .mtag{display:inline-block;font-size:11px;font-weight:600;color:var(--brand);background:var(--brand-bg);border-radius:6px;padding:0 6px;margin-left:6px}
   .act{background:none;border:1px solid #c5cedb;color:var(--brand);font-size:12.5px;padding:3px 9px;border-radius:7px;font-weight:600}
   .act:hover{background:var(--soft)}
@@ -375,6 +380,7 @@ const CONFIG = {
             <option value="absent">เฉพาะยังไม่มา</option>
             <option value="present">เฉพาะมาแล้ว</option>
             <option value="late">เฉพาะมาสาย</option>
+            <option value="leave">เฉพาะลา</option>
           </select>
           <span class="sp"></span>
           <button class="ghost small" id="refreshBtn" type="button">รีเฟรช</button>
@@ -636,6 +642,11 @@ const CONFIG = {
     "จัดการรายชื่อ · Meeting Check-in": ["名单管理 · Meeting Check-in", "Manage names · Meeting Check-in"],
     "กลุ่มส่วนงาน": ["部门分组", "Department groups"],
     "+ เช็คอินแทน": ["+ 补签", "+ Manual check-in"],
+    "ลา": ["请假", "Leave"],
+    "เฉพาะลา": ["仅请假", "On leave"],
+    "บันทึกว่าลาประชุม (0 คะแนน)": ["记为请假（0 分）", "Mark as on leave (0 points)"],
+    "ยกเลิกการลา": ["取消请假", "Undo leave"],
+    "请假 ลา": ["请假", "Leave"],
     "เช็คอินแทน": ["补签", "Check in"],
     "ดาวน์โหลด Excel": ["下载 Excel", "Download Excel"],
     "สำหรับคนที่มาทีหลังหรือลืมสแกน ระบบจะบันทึกว่าผู้จัดเป็นคนเพิ่ม": ["用于迟到或忘记扫码的人员，系统会记录为组织者补签", "For people who arrived late or forgot to scan. It will be recorded as added by the organizer"],
@@ -693,6 +704,10 @@ const CONFIG = {
     [/^ลบกลุ่ม "([\s\S]+)"\?$/, "删除分组“$1”？", "Delete group \"$1\"?"],
     [/^ยกเลิกการเช็คอินของ "([\s\S]+)"\?$/, "取消“$1”的签到？", "Undo check-in for \"$1\"?"],
     [/补签 ผู้จัดเพิ่ม/g, "补签", "Manual"],
+    [/请假 ลา/g, "请假", "Leave"],
+    [/^คะแนน ([+-]?\d+)$/, "得分 $1", "Score $1"],
+    [/^บันทึกว่า "([\s\S]+)" ลาประชุม\?$/, "将“$1”记为请假？", "Mark \"$1\" as on leave?"],
+    [/^ยกเลิกการลาของ "([\s\S]+)"\?$/, "取消“$1”的请假？", "Undo leave for \"$1\"?"],
     [/ทุกส่วนงาน/g, "全部部门", "All departments"],
     [/ตัวอย่าง:/g, "示例:", "Example:"],
     [/应到 ผู้ต้องเข้า/g, "应到", "Expected"],
@@ -829,11 +844,19 @@ const CONFIG = {
         const db = data(), dept = findDept(db.departments, d.dept); if(!dept) return E("input", "ไม่พบส่วนงานนี้");
         const mem = db.members.find(x => key(x.dept) === key(dept) && key(x.name) === key(name)); if(mem) name = mem.name;
         const all = checkins();
-        if(!all.some(r => r.m === m.id && key(r.dept) === key(dept) && key(r.name) === key(name))){
+        if(!all.some(r => r.m === m.id && r.tid !== "leave" && key(r.dept) === key(dept) && key(r.name) === key(name))){
           const t = /^\d\d:\d\d$/.test(d.time || "") ? new Date(at(m.d, d.time)) : new Date();
           if(!mem){ db.members.push({dept, name, src:"เพิ่มโดยผู้จัด"}); saveData(db); }
           all.push({time: t.toISOString(), m: m.id, t: m.t, name, dept, tid: "manual"}); sv("checkins", all);
         }
+        return A.host(d);
+      },
+      hostLeave(d){
+        const m = findM(d.m); if(!m || d.k !== m.k) return E("key", "ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว");
+        const db = data(), dept = findDept(db.departments, d.dept), name = norm(d.name);
+        if(!dept || !name) return E("input", "ไม่พบส่วนงานนี้");
+        const all = checkins();
+        if(!all.some(r => r.m === m.id && key(r.dept) === key(dept) && key(r.name) === key(name))){ all.push({time: new Date().toISOString(), m: m.id, t: m.t, name, dept, tid: "leave"}); sv("checkins", all); }
         return A.host(d);
       },
       hostUncheck(d){
@@ -845,7 +868,8 @@ const CONFIG = {
         const m = findM(d.m); if(!m || d.k !== m.k) return E("key", "ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว");
         const now = Date.now(), s = slot(now), db = data();
         return {ok:true, meeting: pub(m), departments: invited(m, db), members: db.members,
-          records: checkins().filter(r => r.m === m.id).map(r => ({time:r.time, name:r.name, dept:r.dept, manual: r.tid === "manual"})),
+          records: checkins().filter(r => r.m === m.id && r.tid !== "leave").map(r => ({time:r.time, name:r.name, dept:r.dept, manual: r.tid === "manual"})),
+          leaves: checkins().filter(r => r.m === m.id && r.tid === "leave").map(r => ({time:r.time, name:r.name, dept:r.dept})),
           token: qtok(m, s), msLeft: (s + 1) * QR_S * 1000 - now, qrSeconds: QR_S, closed: windowError(m, now), serverTime: now};
       },
       claim(d){
@@ -1227,7 +1251,7 @@ const CONFIG = {
   function showDash(mid, hk){
     show("viewDash", true); show("homeLink", true);
     document.body.classList.add("wide");   // แดชบอร์ดใช้เต็มความกว้างจอ
-    let m = null, records = [], depts = [], members = [], tab = "check";
+    let m = null, records = [], leaves = [], depts = [], members = [], tab = "check";
     let token = "", deadline = 0, qrSec = 60, lastFetch = 0, closed = null, fails = 0;
 
     // ---- QR ลอยบนสไลด์ (Document Picture-in-Picture: หน้าต่างอยู่บนสุดเสมอ ทับ PowerPoint ได้) ----
@@ -1276,11 +1300,12 @@ const CONFIG = {
     }
     function buildGroups(){
       const rec = new Map(records.map(r => [key(r.dept) + "|" + key(r.name), r]));
+      const lv = new Set(leaves.map(r => key(r.dept) + "|" + key(r.name)));
       const used = new Set();
       const groups = depts.map(d => {
         const names = members.filter(x => key(x.dept) === key(d)).map(x => x.name);
-        records.forEach(r => { if(key(r.dept) === key(d) && !names.some(n => key(n) === key(r.name))) names.push(r.name); });
-        const rows = names.sort(byThai).map(n => { const k = key(d) + "|" + key(n); const r = rec.get(k); if(r) used.add(k); return {dept: d, name: n, r}; });
+        records.concat(leaves).forEach(r => { if(key(r.dept) === key(d) && !names.some(n => key(n) === key(r.name))) names.push(r.name); });
+        const rows = names.sort(byThai).map(n => { const k = key(d) + "|" + key(n); const r = rec.get(k); if(r) used.add(k); return {dept: d, name: n, r, leave: !r && lv.has(k)}; });
         return {dept: d, rows};
       });
       const extra = records.filter(r => !used.has(key(r.dept) + "|" + key(r.name)));
@@ -1288,6 +1313,20 @@ const CONFIG = {
       return groups;
     }
     const statusOf = r => !r ? ["none", "ยังไม่มา"] : (isLate(r.time, m) ? ["late", "สาย"] : ["ok", "ตรงเวลา"]);
+    // คะแนน: ตรงเวลา +3 · สายไม่เกิน 10 นาที -1 · สายเกิน 10 นาที -2 · ขาดโดยไม่แจ้ง -3 · ลา 0 (ยังไม่ถึงเวลาสาย = ยังไม่คิด)
+    const SCORE = {onTime: 3, late10: -1, lateMore: -2, absent: -3, leave: 0};
+    function scoreOf(x){
+      if(x.leave) return SCORE.leave;
+      if(x.r){
+        if(!m.l) return SCORE.onTime;
+        const mins = (new Date(x.r.time).getTime() - at(m.d, m.l)) / 60000;
+        return mins <= 0 ? SCORE.onTime : mins <= 10 ? SCORE.late10 : SCORE.lateMore;
+      }
+      const due = m.l ? at(m.d, m.l) : (m.e ? at(m.d, m.e) : null);
+      return due && Date.now() > due ? SCORE.absent : null;
+    }
+    const fmtScore = v => v == null ? "" : (v > 0 ? "+" + v : String(v));
+    const scoreCls = v => v == null ? "sc" : v > 0 ? "sc p" : v < 0 ? "sc n" : "sc z";
     const posOf = (d, n) => { const x = members.find(y => key(y.dept) === key(d) && key(y.name) === key(n)); return x && x.pos || ""; };
     const secId = d => "sec-" + encodeURIComponent(key(d)).replace(/%/g, "");
 
@@ -1336,7 +1375,7 @@ const CONFIG = {
       syncPip();
       $("dLate").textContent = late ? "(สาย " + late + " คน)" : "";
       const filter = $("dFilter").value;
-      const pass = x => filter === "all" || (filter === "absent" ? !x.r : filter === "present" ? !!x.r : (x.r && isLate(x.r.time, m)));
+      const pass = x => filter === "all" || (filter === "absent" ? (!x.r && !x.leave) : filter === "present" ? !!x.r : filter === "leave" ? x.leave : (x.r && isLate(x.r.time, m)));
 
       const box = $("dCheck"); box.innerHTML = "";
       let shown = 0;
@@ -1346,24 +1385,31 @@ const CONFIG = {
         if(!rows.length && filter !== "all") return;
         const sec = el("div", "deptsec"); sec.id = secId(g.dept);
         const head = el("div", "depthead");
+        const scores = g.rows.map(scoreOf).filter(v => v != null);
+        const sum = scores.reduce((a, b) => a + b, 0);
         head.append(el("h3", null, g.dept), el("span", "muted", "มา " + came + " คน"));
+        if(scores.length) head.appendChild(el("span", "dsc " + scoreCls(sum).split(" ")[1], "คะแนน " + fmtScore(sum)));
         sec.appendChild(head);
         if(!g.rows.length) sec.appendChild(el("p", "muted", "ยังไม่มีรายชื่อในส่วนงานนี้"));
         if(rows.length){
           const t = el("table"); const tb = el("tbody");
           rows.forEach(x => {
             const tr = el("tr");
-            tr.appendChild(el("td", "mark " + (x.r ? "y" : "n"), x.r ? "✓" : "○"));
+            tr.appendChild(el("td", "mark " + (x.r ? "y" : "n"), x.r ? "✓" : x.leave ? "–" : "○"));
             const nm = el("td", null, x.name + (g.dept.startsWith("อื่นๆ") ? " (" + x.dept + ")" : ""));
             const p = posOf(x.dept, x.name); if(p) nm.appendChild(el("span", "pos", p));
             tr.appendChild(nm);
             const tm = el("td", "muted", x.r ? fmtTime(x.r.time) : "–");
             if(x.r && x.r.manual) tm.appendChild(el("span", "mtag", "ผู้จัดเพิ่ม"));
             tr.appendChild(tm);
-            const [c, label] = statusOf(x.r); const td = el("td"); td.appendChild(el("span", "pill " + c, label)); tr.appendChild(td);
+            const [c, label] = x.leave ? ["leave", "ลา"] : statusOf(x.r); const td = el("td"); td.appendChild(el("span", "pill " + c, label)); tr.appendChild(td);
+            const sv = scoreOf(x); tr.appendChild(el("td", scoreCls(sv), fmtScore(sv)));
             const ac = el("td");
-            if(!x.r){ const b = el("button", "act", "เช็คอินแทน"); b.type = "button"; b.onclick = () => openManual(x.dept, x.name); ac.appendChild(b); }
-            else { const b = el("button", "act x", "✕"); b.type = "button"; b.title = "ยกเลิกการเช็คอิน"; b.onclick = () => undoCheckin(x.dept, x.name); ac.appendChild(b); }
+            if(!x.r && !x.leave){
+              const b = el("button", "act", "เช็คอินแทน"); b.type = "button"; b.onclick = () => openManual(x.dept, x.name); ac.appendChild(b);
+              const l = el("button", "act", "ลา"); l.type = "button"; l.title = "บันทึกว่าลาประชุม (0 คะแนน)"; l.onclick = () => markLeave(x.dept, x.name); ac.appendChild(l);
+            }
+            else { const b = el("button", "act x", "✕"); b.type = "button"; b.title = x.leave ? "ยกเลิกการลา" : "ยกเลิกการเช็คอิน"; b.onclick = () => undoCheckin(x.dept, x.name, x.leave); ac.appendChild(b); }
             tr.appendChild(ac);
             tb.appendChild(tr); shown++;
           });
@@ -1399,6 +1445,7 @@ const CONFIG = {
         }
         depts = j.departments; members = j.members;
         records = j.records.slice().sort((a, b) => new Date(a.time) - new Date(b.time));
+        leaves = j.leaves || [];
         closed = j.closed; qrSec = j.qrSeconds;
         deadline = Date.now() + j.msLeft;
         show("dQrWrap", !closed); show("dClosed", !!closed); $("dClosed").textContent = closed || "";
@@ -1479,8 +1526,13 @@ const CONFIG = {
       }catch(e){ $("mErr").textContent = e.message; show("mErr", true); }
       $("mSave").disabled = false;
     };
-    async function undoCheckin(dept, name){
-      if(!confirm("ยกเลิกการเช็คอินของ \"" + name + "\"?")) return;
+    async function markLeave(dept, name){
+      if(!confirm("บันทึกว่า \"" + name + "\" ลาประชุม?")) return;
+      try{ await call("hostLeave", {m: mid, k: hk, dept, name}); await refresh(); }
+      catch(e){ $("dErr").textContent = e.message; show("dErr", true); }
+    }
+    async function undoCheckin(dept, name, isLeave){
+      if(!confirm((isLeave ? "ยกเลิกการลาของ \"" : "ยกเลิกการเช็คอินของ \"") + name + "\"?")) return;
       try{ await call("hostUncheck", {m: mid, k: hk, dept, name}); await refresh(); }
       catch(e){ $("dErr").textContent = e.message; show("dErr", true); }
     }
@@ -1488,14 +1540,14 @@ const CONFIG = {
     // ---- ข้อมูลฟอร์ม 会议登记 ใช้ร่วมกันทั้ง PDF และ Excel ----
     function formData(){
       const idOf = new Map(members.map(x => [key(x.dept) + "|" + key(x.name), x.id || ""]));
-      const out = {groups: [], total: 0, came: 0, late: 0};
+      const out = {groups: [], total: 0, came: 0, late: 0, leave: 0};
       buildGroups().forEach(g => {
         const rows = (g.rows.length ? g.rows : [null]).map(x => {
           if(!x) return null;
           out.total++;
-          const isL = x.r && isLate(x.r.time, m); if(x.r) out.came++; if(isL) out.late++;
+          const isL = x.r && isLate(x.r.time, m); if(x.r) out.came++; if(isL) out.late++; if(x.leave) out.leave++;
           const rem = [];
-          if(!x.r) rem.push("缺席 ไม่มา"); else if(isL) rem.push("迟到 สาย");
+          if(x.leave) rem.push("请假 ลา"); else if(!x.r) rem.push("缺席 ไม่มา"); else if(isL) rem.push("迟到 สาย");
           if(x.r && x.r.manual) rem.push("补签 ผู้จัดเพิ่ม");
           return {name: x.name, id: idOf.get(key(x.dept) + "|" + key(x.name)) || "", signed: x.r ? "✓ " + fmtTime(x.r.time).slice(0, 5) : "", remark: rem.join(" · ")};
         });
@@ -1541,7 +1593,7 @@ const CONFIG = {
       });
       t.appendChild(tb); sheet.appendChild(t);
       const foot = el("div", "pfoot");
-      foot.append(el("span", null, "应到 ผู้ต้องเข้า " + fd.total + " · 实到 มา " + fd.came + " · 迟到 สาย " + fd.late + " · 缺席 ไม่มา " + (fd.total - fd.came)),
+      foot.append(el("span", null, "应到 ผู้ต้องเข้า " + fd.total + " · 实到 มา " + fd.came + " · 迟到 สาย " + fd.late + " · 请假 ลา " + fd.leave + " · 缺席 ไม่มา " + (fd.total - fd.came - fd.leave)),
         el("span", null, "Meeting Check-in · " + new Date().toLocaleString(LOCALE, {timeZone: TZ})));
       sheet.appendChild(foot);
       document.title = "Meeting Registration " + m.d + " " + m.t;
@@ -1594,7 +1646,7 @@ const CONFIG = {
           put("A" + r, no, {align: {horizontal: "center"}});
           put("C" + r, x ? x.name : ""); put("D" + r, x ? x.id : "", {align: {horizontal: "center"}});
           put("E" + r, x ? x.signed : "", {align: {horizontal: "center"}, font: x && x.signed ? {color: {argb: "FF12805C"}, bold: true} : null});
-          put("F" + r, x ? tr(x.remark) : "", {align: {horizontal: "center"}, font: x && x.remark && !x.signed ? {color: {argb: "FFB42318"}} : (x && /迟到/.test(x.remark) ? {color: {argb: "FFB45309"}} : null)});
+          put("F" + r, x ? tr(x.remark) : "", {align: {horizontal: "center"}, font: x && /请假/.test(x.remark) ? {color: {argb: "FF5B45B8"}} : x && x.remark && !x.signed ? {color: {argb: "FFB42318"}} : (x && /迟到/.test(x.remark) ? {color: {argb: "FFB45309"}} : null)});
           ws.getRow(r).height = 19; r++;
         });
         borderRange("B" + start + ":B" + (r - 1));
@@ -1604,7 +1656,7 @@ const CONFIG = {
       // สรุปท้ายฟอร์ม
       borderRange("A" + r + ":F" + r); ws.mergeCells("A" + r + ":F" + r);
       const sum = ws.getCell("A" + r);
-      sum.value = tr("应到 ผู้ต้องเข้า " + fd.total + " · 实到 มา " + fd.came + " · 迟到 สาย " + fd.late + " · 缺席 ไม่มา " + (fd.total - fd.came));
+      sum.value = tr("应到 ผู้ต้องเข้า " + fd.total + " · 实到 มา " + fd.came + " · 迟到 สาย " + fd.late + " · 请假 ลา " + fd.leave + " · 缺席 ไม่มา " + (fd.total - fd.came - fd.leave));
       sum.font = font({bold: true}); sum.alignment = {horizontal: "left", vertical: "middle"}; sum.border = box; ws.getRow(r).height = 20;
       ws.pageSetup.printArea = "A1:F" + r;
       ws.headerFooter.oddFooter = "&L&8Meeting Check-in&R&8&P / &N";
@@ -1620,7 +1672,7 @@ const CONFIG = {
       try{ await downloadXlsx(); b.disabled = false; return; }catch(e){ b.disabled = false; }   // โหลดไลบรารี Excel ไม่ได้ -> ดาวน์โหลดเป็น CSV แทน
       const cell = v => { let s = String(v == null ? "" : v); if(/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
       const rows = [["ส่วนงาน", "ชื่อ", "ตำแหน่ง", "เวลาเช็คอิน", "สถานะ", "การประชุม", "วันที่", "สายหลัง"]];
-      buildGroups().forEach(g => g.rows.forEach(x => rows.push([x.dept, x.name, posOf(x.dept, x.name), x.r ? fmtTime(x.r.time) : "", statusOf(x.r)[1], m.t, m.d, m.l])));
+      buildGroups().forEach(g => g.rows.forEach(x => rows.push([x.dept, x.name, posOf(x.dept, x.name), x.r ? fmtTime(x.r.time) : "", x.leave ? "ลา" : statusOf(x.r)[1], m.t, m.d, m.l])));
       const csv = "﻿" + rows.map(r => r.map(cell).join(",")).join("\r\n");
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv;charset=utf-8"}));

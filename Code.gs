@@ -30,6 +30,8 @@ const SRC_AUTO = 'เพิ่มตอนเช็คอิน';
 const SRC_ADMIN = 'ผู้ดูแล';
 const SRC_HOST = 'เพิ่มโดยผู้จัด';
 const TID_MANUAL = 'manual';   // รหัสการสแกนของการเช็คอินที่ผู้จัดกรอกเอง
+const TID_LEAVE = 'leave';     // แถวที่ผู้จัดบันทึกว่า "ลาประชุม" (ไม่นับเป็นการเข้าประชุม)
+function isLeave_(r) { return r.tid === TID_LEAVE; }
 
 /* ---------- helpers ---------- */
 function sheet_(name) {
@@ -152,13 +154,13 @@ function doGet() {
 }
 
 /* ---------- POST ---------- */
-const WRITE_ACTIONS = ['checkin', 'admin', 'createMeeting', 'deleteMeeting', 'hostCheckin', 'hostUncheck'];
+const WRITE_ACTIONS = ['checkin', 'admin', 'createMeeting', 'deleteMeeting', 'hostCheckin', 'hostUncheck', 'hostLeave'];
 function doPost(e) {
   let lock = null;
   try {
     const data = JSON.parse(e.postData.contents);
     if (WRITE_ACTIONS.indexOf(data.action) >= 0) { lock = LockService.getScriptLock(); lock.waitLock(20000); }
-    const fn = { host: host_, claim: claim_, checkin: checkin_, admin: admin_, meetings: meetings_, createMeeting: createMeeting_, deleteMeeting: deleteMeeting_, hostCheckin: hostCheckin_, hostUncheck: hostUncheck_ }[data.action];
+    const fn = { host: host_, claim: claim_, checkin: checkin_, admin: admin_, meetings: meetings_, createMeeting: createMeeting_, deleteMeeting: deleteMeeting_, hostCheckin: hostCheckin_, hostUncheck: hostUncheck_, hostLeave: hostLeave_ }[data.action];
     return json_(fn ? fn(data) : err_('action', 'unknown action'));
   } catch (err) {
     return json_({ ok: false, error: String(err) });
@@ -176,9 +178,9 @@ function meetings_(data) {
 // จำนวนผู้เช็คอิน / ผู้ที่ต้องเข้า / มาสาย ของแต่ละรอบการประชุม
 function withCounts_(list) {
   const db = getData_();
-  const rows = rows_(sheet_('Checkins'), 5);
+  const rows = rows_(sheet_('Checkins'), 6);
   return list.map(function (mt) {
-    const recs = rows.filter(function (r) { return String(r[1]) === mt.id; });
+    const recs = rows.filter(function (r) { return String(r[1]) === mt.id && String(r[5]) !== TID_LEAVE; });
     const dk = invited_(mt, db).map(key_);
     const late = mt.l ? recs.filter(function (r) { return new Date(r[0]).getTime() > at_(mt.d, mt.l); }).length : 0;
     return Object.assign({}, mt, {
@@ -215,7 +217,8 @@ function host_(data) {
   const db = getData_();
   return {
     ok: true, meeting: pub_(mt), departments: invited_(mt, db), members: db.members,
-    records: readCheckins_(mt.id).map(function (r) { return { time: r.time, name: r.name, dept: r.dept, manual: r.tid === TID_MANUAL }; }),
+    records: readCheckins_(mt.id).filter(function (r) { return !isLeave_(r); }).map(function (r) { return { time: r.time, name: r.name, dept: r.dept, manual: r.tid === TID_MANUAL }; }),
+    leaves: readCheckins_(mt.id).filter(isLeave_).map(function (r) { return { time: r.time, name: r.name, dept: r.dept }; }),
     token: qrToken_(mt, slot), msLeft: (slot + 1) * QR_SECONDS * 1000 - now, qrSeconds: QR_SECONDS,
     closed: windowError_(mt, now), serverTime: now
   };
@@ -233,7 +236,7 @@ function hostCheckin_(data) {
   if (!dept) return err_('input', 'ไม่พบส่วนงานนี้');
   const member = db.members.filter(function (x) { return key_(x.dept) === key_(dept) && key_(x.name) === key_(name); })[0];
   if (member) name = member.name;
-  const exists = readCheckins_(mt.id).some(function (r) { return key_(r.dept) === key_(dept) && key_(r.name) === key_(name); });
+  const exists = readCheckins_(mt.id).some(function (r) { return !isLeave_(r) && key_(r.dept) === key_(dept) && key_(r.name) === key_(name); });
   if (!exists) {
     const at = /^\d{2}:\d{2}$/.test(data.time || '') ? new Date(at_(mt.d, data.time)) : new Date();
     if (!member) sheet_('Members').appendRow([dept, name, SRC_HOST, new Date()]);
@@ -241,7 +244,19 @@ function hostCheckin_(data) {
   }
   return host_(data);
 }
-// ผู้จัดยกเลิกการเช็คอิน (กรณีกรอกผิด) {action:'hostUncheck', m, k, dept, name}
+// ผู้จัดบันทึกว่าลาประชุม {action:'hostLeave', m, k, dept, name}
+function hostLeave_(data) {
+  const mt = findMeeting_(data.m);
+  if (!mt || String(data.k || '') !== mt.k) return err_('key', 'ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว');
+  const db = getData_();
+  const dept = findDept_(db.departments, clean_(data.dept, 60));
+  const name = clean_(data.name, 80);
+  if (!dept || !name) return err_('input', 'ไม่พบส่วนงานนี้');
+  const has = readCheckins_(mt.id).some(function (r) { return key_(r.dept) === key_(dept) && key_(r.name) === key_(name); });
+  if (!has) sheet_('Checkins').appendRow([new Date(), mt.id, mt.t, name, dept, TID_LEAVE]);
+  return host_(data);
+}
+// ผู้จัดยกเลิกการเช็คอิน/การลา (กรณีกรอกผิด) {action:'hostUncheck', m, k, dept, name}
 function hostUncheck_(data) {
   const mt = findMeeting_(data.m);
   if (!mt || String(data.k || '') !== mt.k) return err_('key', 'ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว');
@@ -270,7 +285,7 @@ function claim_(data) {
   return {
     ok: true, meeting: pub_(mt), ticket: ticket, departments: depts,
     members: db.members.filter(function (x) { return dk.indexOf(key_(x.dept)) >= 0; }).map(function (x) { return { dept: x.dept, name: x.name, pos: x.pos }; }),
-    checked: readCheckins_(mt.id).map(function (r) { return key_(r.dept) + '|' + key_(r.name); })
+    checked: readCheckins_(mt.id).filter(function (r) { return !isLeave_(r); }).map(function (r) { return key_(r.dept) + '|' + key_(r.name); })
   };
 }
 
@@ -293,7 +308,7 @@ function checkin_(data) {
   const member = db.members.filter(function (x) { return key_(x.dept) === key_(dept) && key_(x.name) === key_(name); })[0];
   if (member) name = member.name;
 
-  const recs = readCheckins_(mt.id);
+  const all = readCheckins_(mt.id), recs = all.filter(function (r) { return !isLeave_(r); });
   const existing = recs.filter(function (r) { return key_(r.dept) === key_(dept) && key_(r.name) === key_(name); })[0];
   if (existing) return { ok: true, duplicate: true, added: false, record: { time: existing.time, name: existing.name, dept: existing.dept } };
   if (recs.some(function (r) { return r.tid === tid; })) return err_('used', 'QR นี้ใช้เช็คอินไปแล้ว กรุณาสแกนใหม่');
@@ -303,6 +318,9 @@ function checkin_(data) {
   if (!member) { // ชื่อใหม่จาก "อื่นๆ" -> เพิ่มเข้ารายชื่อส่วนงานอัตโนมัติ
     sheet_('Members').appendRow([dept, name, SRC_AUTO, at]);
     added = true;
+  }
+  if (all.some(function (r) { return isLeave_(r) && key_(r.dept) === key_(dept) && key_(r.name) === key_(name); })) {
+    deleteWhere_(sheet_('Checkins'), 6, function (r) { return String(r[1]) === mt.id && String(r[5]) === TID_LEAVE && key_(r[4]) === key_(dept) && key_(r[3]) === key_(name); });
   }
   sheet_('Checkins').appendRow([at, mt.id, mt.t, name, dept, tid]);
   return { ok: true, duplicate: false, added: added, record: { time: at.toISOString(), name: name, dept: dept } };
