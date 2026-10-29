@@ -243,6 +243,8 @@ const CONFIG = {
   .pf .dept{font-size:11px}
   .pf tr{page-break-inside:avoid}
   .pfoot{display:flex;justify-content:space-between;font-size:10.5px;margin-top:6px;color:#000}
+  /* ลิงก์ดูอย่างเดียว: หน้าตาเหมือนหน้าผู้จัด (รวม QR) แต่ซ่อนปุ่มแก้ไข และเมนูไปหน้าอื่น */
+  body.viewonly #dFixBtn,body.viewonly #manualBtn,body.viewonly #viewLinkBtn,body.viewonly .act,body.viewonly #homeLink,body.viewonly #adminLink{display:none!important}
   /* แดชบอร์ด 2 ภาษา: จีนตัวหนาเข้ม + ไทยตัวเล็กสีเทา */
   .bi .bz{font-weight:700;color:var(--ink)}
   .bi .bt{font-size:.78em;font-weight:400;color:#8a96a8;margin-left:5px}
@@ -489,6 +491,7 @@ const CONFIG = {
           <span class="sp"></span>
           <button class="ghost small" id="refreshBtn" type="button">รีเฟรช</button>
           <button class="ghost small" id="manualBtn" type="button">+ เช็คอินแทน</button>
+          <button class="ghost small hidden" id="viewLinkBtn" type="button" title="ลิงก์ Dashboard ดูอย่างเดียว แก้ไขไม่ได้ เข้าหน้าอื่นไม่ได้">ลิงก์ดูอย่างเดียว</button>
           <button class="ghost small" id="csvBtn" type="button">ดาวน์โหลด Excel</button>
           <button class="small" id="printBtn" type="button">พิมพ์ฟอร์ม / PDF</button>
         </div>
@@ -739,6 +742,8 @@ const CONFIG = {
     "ปฏิทิน": ["日历", "Calendar"],
     "ลาทั้งหมด": ["全部请假", "All on leave"],
     "เลื่อนขึ้น": ["上移", "Move up"],
+    "ลิงก์ดูอย่างเดียว": ["只读链接", "View-only link"],
+    "ลิงก์ Dashboard ดูอย่างเดียว แก้ไขไม่ได้ เข้าหน้าอื่นไม่ได้": ["只读看板链接：不能修改，也不能进入其他页面", "View-only dashboard link: no editing, no access to other pages"],
     "เลื่อนลง": ["下移", "Move down"],
     "ย้ายไปไว้หลัง": ["移到…之后", "Move after"],
     "ย้ายไปไว้หลัง…": ["移到…之后", "Move after…"],
@@ -1016,11 +1021,12 @@ const CONFIG = {
     const pub = m => ({qm:qmOf(m), desc:m.desc || "", id:m.id, t:m.t, d:m.d, s:m.s, l:m.l, e:m.e, r:m.r, g:m.g, h:m.h || ""});
     const checkins = () => ld("checkins", []);
     const slot = (m, now) => qmOf(m) ? Math.floor(now / (qmOf(m) * 60000)) : "fixed";
+    const vkey = m => hmac(m.k, "V|" + m.id).slice(0, 16);
     const qtok = (m, s) => hmac(m.k, "Q|" + m.id + "|" + s).slice(0, 12);
     const mkTicket = (m, now) => { const tid = rand(10), exp = now + TICKET_MIN * 60000; return tid + "." + exp + "." + hmac(m.k, "T|" + m.id + "|" + tid + "|" + exp); };
     const readTicket = (m, t, now) => { const p = String(t || "").split("."); if(p.length !== 3 || hmac(m.k, "T|" + m.id + "|" + p[0] + "|" + p[1]) !== p[2] || Number(p[1]) < now) return null; return p[0]; };
     const E = (code, error) => ({ok:false, code, error});
-    const counts = list => { const db = data(), rows = checkins(); return list.map(m => { const recs = rows.filter(r => r.m === m.id); const dk = new Set(invited(m, db).map(key)); return Object.assign({}, m, {n: recs.length, late: recs.filter(r => isLate(r.time, m)).length, total: db.members.filter(x => dk.has(key(x.dept))).length}); }); };
+    const counts = list => { const db = data(), rows = checkins(); return list.map(m => { const recs = rows.filter(r => r.m === m.id); const dk = new Set(invited(m, db).map(key)); return Object.assign({}, m, {v: vkey(m), n: recs.length, late: recs.filter(r => isLate(r.time, m)).length, total: db.members.filter(x => dk.has(key(x.dept))).length}); }); };
     const A = {
       meetings(d){ if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง"); return {ok:true, meetings: counts(meetings())}; },
       updateMeeting(d){
@@ -1077,12 +1083,14 @@ const CONFIG = {
         return A.host(d);
       },
       host(d){
-        const m = findM(d.m); if(!m || d.k !== m.k) return E("key", "ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว");
+        const m = findM(d.m), full = !!m && d.k === m.k, ro = !full && !!m && !!d.v && d.v === vkey(m);
+        if(!full && !ro) return E("key", "ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว");
         const now = Date.now(), s = slot(m, now), db = data(), qm = qmOf(m);
         return {ok:true, meeting: pub(m), departments: invited(m, db), members: db.members,
           records: checkins().filter(r => r.m === m.id && r.tid !== "leave").map(r => ({time:r.time, name:r.name, dept:r.dept, manual: r.tid === "manual"})),
           leaves: checkins().filter(r => r.m === m.id && r.tid === "leave").map(r => ({time:r.time, name:r.name, dept:r.dept})),
-          token: qtok(m, s), fixed: !qm, msLeft: qm ? (s + 1) * qm * 60000 - now : 0, qrSeconds: qm * 60, closed: windowError(m, now), serverTime: now};
+          token: qtok(m, s), fixed: !qm, msLeft: qm ? (s + 1) * qm * 60000 - now : 0, qrSeconds: qm * 60, closed: windowError(m, now), serverTime: now,
+          viewOnly: ro, v: ro ? undefined : vkey(m)};
       },
       claim(d){
         const m = findM(d.m); if(!m) return E("meeting", "ไม่พบการประชุมนี้");
@@ -1418,7 +1426,12 @@ const CONFIG = {
         ed.onclick = () => { closeEv(); editMeeting(m); };
         const dup = el("button", "ghost small", "สร้างซ้ำสัปดาห์หน้า"); dup.type = "button";
         dup.onclick = () => dupNext(m, dup);
-        acts.append(open, ed, dup, copyBtn(m), delBtn(m));
+        const vw = el("button", "ghost small", "ลิงก์ดูอย่างเดียว"); vw.type = "button"; vw.title = "ลิงก์ Dashboard ดูอย่างเดียว แก้ไขไม่ได้ เข้าหน้าอื่นไม่ได้";
+        const vurl = baseUrl + "?" + withApi(new URLSearchParams({m: m.id, v: m.v || ""})).toString();
+        vw.onclick = async () => { try{ await navigator.clipboard.writeText(vurl); vw.textContent = "คัดลอกแล้ว"; }catch(e){ prompt("คัดลอกลิงก์นี้", vurl); } setTimeout(() => vw.textContent = "ลิงก์ดูอย่างเดียว", 1500); };
+        acts.append(open, ed, dup, copyBtn(m));
+        if(m.v) acts.appendChild(vw);
+        acts.appendChild(delBtn(m));
         show("evModal", true);
       }
       // สร้างการประชุมเดิมในสัปดาห์ถัดไป (ถัดจากวันนี้) กดครั้งเดียว
@@ -1727,8 +1740,9 @@ const CONFIG = {
   }
 
   /* ================= แดชบอร์ดการประชุม (ผู้จัด) ================= */
-  function showDash(mid, hk){
-    show("viewDash", true); show("homeLink", true);
+  function showDash(mid, hk, vk){
+    show("viewDash", true); show("homeLink", !vk);
+    if(vk) document.body.classList.add("viewonly");   // ลิงก์ดูอย่างเดียว
     document.body.classList.add("wide");   // แดชบอร์ดใช้เต็มความกว้างจอ
     let m = null, records = [], leaves = [], depts = [], members = [], tab = "check";
     let token = "", deadline = 0, qrSec = 60, lastFetch = 0, closed = null, fixed = false, fails = 0;
@@ -1913,11 +1927,12 @@ const CONFIG = {
       show("dEmpty", records.length === 0);
     }
 
-    let busy = false;
+    let busy = false, viewKey = "";   // viewKey = คีย์ลิงก์ดูอย่างเดียว (ได้จากเซิร์ฟเวอร์เมื่อเปิดด้วยคีย์ผู้จัด)
     async function refresh(){
       if(busy) return; busy = true; lastFetch = Date.now();
       try{
-        const j = await call("host", {m: mid, k: hk});
+        const j = await call("host", vk ? {m: mid, v: vk} : {m: mid, k: hk});
+        if(j.v && !vk){ viewKey = j.v; show("viewLinkBtn", true); }
         fails = 0; show("dErr", false);
         if(!m){
           m = j.meeting;
@@ -1966,6 +1981,12 @@ const CONFIG = {
     refresh();
 
     $("refreshBtn").onclick = refresh;
+    const viewUrl = () => baseUrl + "?" + withApi(new URLSearchParams({m: mid, v: viewKey})).toString();
+    $("viewLinkBtn").onclick = async () => {
+      const b = $("viewLinkBtn");
+      try{ await navigator.clipboard.writeText(viewUrl()); b.textContent = "คัดลอกแล้ว"; }catch(e){ prompt("คัดลอกลิงก์นี้", viewUrl()); }
+      setTimeout(() => b.textContent = "ลิงก์ดูอย่างเดียว", 1500);
+    };
     $("dFixBtn").onclick = async () => {
       if(!confirm("เปลี่ยนการประชุมนี้เป็น QR ไม่เปลี่ยน เพื่อแสดง QR ได้ตั้งแต่ตอนนี้?\n(สแกนเช็คอินได้เมื่อถึงเวลาเปิดสแกนเท่านั้น)")) return;
       $("dFixBtn").disabled = true;
@@ -2312,6 +2333,7 @@ const CONFIG = {
   if(!API && !params.get("m")) show("demoBanner", true);
   const mid = params.get("m");
   if(mid && params.get("k")){ if(!API) show("demoBanner", true); showDash(mid, params.get("k")); }
+  else if(mid && params.get("v")){ if(!API) show("demoBanner", true); showDash(mid, "", params.get("v")); }
   else if(mid) showAttend(mid);
   else if(params.get("admin") === "1") showAdmin();
   else showHome();
