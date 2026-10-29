@@ -278,6 +278,15 @@ const CONFIG = {
             <div><label for="fClose">ปิดสแกน</label><input id="fClose" type="time" required></div>
           </div>
           <div class="hint">QR สแกนได้เฉพาะช่วงเปิด–ปิดของวันที่กำหนด เช็คอินหลังเวลา "สายหลัง" นับเป็นสาย</div>
+          <label for="fQrMode">QR Code</label>
+          <div class="row3" style="grid-template-columns:1fr 1fr">
+            <select id="fQrMode" aria-label="QR Code">
+              <option value="rot">เปลี่ยนทุก ... นาที</option>
+              <option value="fixed">ไม่เปลี่ยน (ใช้ QR เดิมตลอด)</option>
+            </select>
+            <input id="fQrMin" type="number" min="1" max="120" step="1" value="1" aria-label="นาที">
+          </div>
+          <div class="hint" id="fQrHint">QR เปลี่ยนใหม่ตามนาทีที่ตั้ง ส่งลิงก์หรือถ่ายรูป QR ไปเช็คอินนอกห้องไม่ได้</div>
           <label for="fRoom">ห้อง / สถานที่</label>
           <input id="fRoom" maxlength="60" placeholder="เช่น Meeting Room 2">
           <div class="labelrow" style="margin-top:12px">
@@ -320,6 +329,7 @@ const CONFIG = {
       <div class="card">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
           <h2 style="flex:1;margin:0" id="adTitle"></h2>
+          <button class="ghost small" id="renameDeptBtn" type="button">แก้ชื่อส่วนงาน</button>
           <button class="danger small" id="delDeptBtn" type="button">ลบส่วนงาน</button>
         </div>
         <div class="muted" id="adCount"></div>
@@ -618,6 +628,15 @@ const CONFIG = {
     "ไม่พบการประชุมนี้": ["未找到该会议", "Meeting not found"],
     "การประชุมนี้อาจถูกยกเลิกแล้ว": ["该会议可能已取消", "This meeting may have been cancelled"],
     "ยังไม่เปิดให้เช็คอิน": ["尚未开放签到", "Check-in not open yet"],
+    "ยังไม่ถึงเวลาเริ่มสแกน": ["还未到开始扫码时间", "Scanning has not started yet"],
+    "แก้ชื่อส่วนงาน": ["修改部门名称", "Rename department"],
+    "เปลี่ยนทุก ... นาที": ["每 ... 分钟更换", "Change every ... minutes"],
+    "ไม่เปลี่ยน (ใช้ QR เดิมตลอด)": ["不更换（始终使用同一二维码）", "Never change (keep the same QR)"],
+    "นาที": ["分钟", "minutes"],
+    "QR เปลี่ยนใหม่ตามนาทีที่ตั้ง ส่งลิงก์หรือถ่ายรูป QR ไปเช็คอินนอกห้องไม่ได้": ["二维码按设定的分钟数更换，无法通过转发链接或拍照在会议室外签到", "The QR changes at the set interval, so a forwarded link or photo of the QR can't be used to check in from outside the room"],
+    "QR ไม่เปลี่ยน แสดงได้ตั้งแต่สร้างการประชุม แต่สแกนเช็คอินได้เฉพาะช่วงเวลาเปิด–ปิดสแกน (ใครมีลิงก์หรือรูป QR ก็สแกนได้)": ["二维码不更换，创建会议后即可显示，但仅在开始/结束扫码时间内可签到（持有链接或二维码照片的人都能扫码）", "The QR never changes and can be shown right after the meeting is created, but check-in only works between the open and close times (anyone with the link or a photo of the QR can scan it)"],
+    "กรุณาสแกน QR บนจอในห้องประชุมใหม่อีกครั้ง": ["请重新扫描会议室屏幕上的二维码", "Please scan the QR on the meeting room screen again"],
+    "QR ไม่เปลี่ยน": ["二维码不更换", "QR does not change"],
     "ปิดรับเช็คอินแล้ว": ["签到已结束", "Check-in closed"],
     "QR นี้ใช้เช็คอินไปแล้ว กรุณาสแกนใหม่": ["此二维码已使用，请重新扫描", "This QR was already used. Please scan again"],
     "QR หมดอายุ กรุณาสแกนใหม่": ["二维码已过期，请重新扫描", "QR expired. Please scan again"],
@@ -688,6 +707,7 @@ const CONFIG = {
     [/^\+ อีก (\d+) คน$/, "+ 另 $1 人", "+ $1 more"],
     [/^(\d\d:\d\d(?::\d\d)?) น\.$/, "$1", "$1"],
     [/^ยังไม่เปิดให้เช็คอิน เปิดสแกนวันที่ (\S+) เวลา (\S+) น\.$/, "尚未开放签到，开放时间 $1 $2", "Check-in not open yet. Opens $1 at $2"],
+    [/^ยังไม่ถึงเวลาเริ่มสแกน เริ่มสแกนได้วันที่ (\S+) เวลา (\S+) น\.$/, "还未到开始扫码时间，可于 $1 $2 开始扫码", "Scanning has not started yet. You can scan from $1 at $2"],
     [/^ปิดรับเช็คอินแล้ว \(รับถึง (\S+) น\. ของวันที่ (\S+)\)$/, "签到已结束（截止 $2 $1）", "Check-in closed (until $1 on $2)"],
     [/^([\s\S]+) เช็คอินการประชุมนี้ไปแล้ว ถ้าจะเช็คอินให้คนอื่น พิมพ์ชื่อด้านบน$/, "$1 已签到本次会议。如需为他人签到，请在上方输入姓名", "$1 has already checked in. To check in someone else, type their name above"],
     [/^สวัสดีค่ะ ([\s\S]+)$/, "您好，$1", "Hello, $1"],
@@ -790,7 +810,7 @@ const CONFIG = {
   function windowError(m, now){
     if(!m.d) return null;
     const open = at(m.d, m.s || "00:00"), close = m.e ? at(m.d, m.e) : at(m.d, "23:59") + 59000;
-    if(now < open) return "ยังไม่เปิดให้เช็คอิน เปิดสแกนวันที่ " + m.d + " เวลา " + (m.s || "00:00") + " น.";
+    if(now < open) return "ยังไม่ถึงเวลาเริ่มสแกน เริ่มสแกนได้วันที่ " + m.d + " เวลา " + (m.s || "00:00") + " น.";
     if(now > close) return "ปิดรับเช็คอินแล้ว (รับถึง " + (m.e || "23:59") + " น. ของวันที่ " + m.d + ")";
     return null;
   }
@@ -808,7 +828,7 @@ const CONFIG = {
 
   /* ================= โหมดทดลอง: จำลอง Code.gs ด้วย localStorage ================= */
   const demo = (function(){
-    const PIN = "1234", QR_S = 60, GRACE = 1, TICKET_MIN = 10;
+    const PIN = "1234", GRACE = 1, TICKET_MIN = 10;
     const ld = (k, d) => store.get("demo_" + k, d), sv = (k, v) => store.set("demo_" + k, v);
     const h = s => { let a = 0xdeadbeef, b = 0x41c6ce57; for(let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); a = Math.imul(a ^ c, 2654435761); b = Math.imul(b ^ c, 1597334677); } a = Math.imul(a ^ (a >>> 16), 2246822507) ^ Math.imul(b ^ (b >>> 13), 3266489909); b = Math.imul(b ^ (b >>> 16), 2246822507) ^ Math.imul(a ^ (a >>> 13), 3266489909); return (4294967296 * (2097151 & b) + (a >>> 0)).toString(36); };
     const hmac = (k, m) => h(k + "|" + m) + h(m + "|" + k);
@@ -818,9 +838,10 @@ const CONFIG = {
     const findDept = (list, d) => list.find(x => key(x) === key(d)) || null;
     const meetings = () => ld("meetings", []);
     const findM = id => meetings().find(x => x.id === id) || null;
-    const pub = m => ({id:m.id, t:m.t, d:m.d, s:m.s, l:m.l, e:m.e, r:m.r, g:m.g, h:m.h || ""});
+    const qmOf = m => m.qm == null ? 1 : m.qm;
+    const pub = m => ({qm:qmOf(m), id:m.id, t:m.t, d:m.d, s:m.s, l:m.l, e:m.e, r:m.r, g:m.g, h:m.h || ""});
     const checkins = () => ld("checkins", []);
-    const slot = now => Math.floor(now / (QR_S * 1000));
+    const slot = (m, now) => qmOf(m) ? Math.floor(now / (qmOf(m) * 60000)) : "fixed";
     const qtok = (m, s) => hmac(m.k, "Q|" + m.id + "|" + s).slice(0, 12);
     const mkTicket = (m, now) => { const tid = rand(10), exp = now + TICKET_MIN * 60000; return tid + "." + exp + "." + hmac(m.k, "T|" + m.id + "|" + tid + "|" + exp); };
     const readTicket = (m, t, now) => { const p = String(t || "").split("."); if(p.length !== 3 || hmac(m.k, "T|" + m.id + "|" + p[0] + "|" + p[1]) !== p[2] || Number(p[1]) < now) return null; return p[0]; };
@@ -831,9 +852,10 @@ const CONFIG = {
       createMeeting(d){
         if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง");
         const t = norm(d.t).slice(0, 80); if(!t || !d.d) return E("input", "กรุณากรอกชื่อและวันที่");
+        const qn = Number(d.qm), qm = d.qm === "" || d.qm == null || isNaN(qn) ? 1 : Math.max(0, Math.min(120, Math.round(qn)));
         if(d.s && d.e && d.e <= d.s) return E("input", "เวลาปิดสแกนต้องอยู่หลังเวลาเปิดสแกน");
         const db = data();
-        const m = {id: "M" + rand(9), t, h: norm(d.h).slice(0, 60), d: d.d, s: d.s || "", l: d.l || "", e: d.e || "", r: norm(d.r).slice(0, 60), g: (d.g || []).map(x => findDept(db.departments, x)).filter(Boolean), k: rand(32)};
+        const m = {qm, id: "M" + rand(9), t, h: norm(d.h).slice(0, 60), d: d.d, s: d.s || "", l: d.l || "", e: d.e || "", r: norm(d.r).slice(0, 60), g: (d.g || []).map(x => findDept(db.departments, x)).filter(Boolean), k: rand(32)};
         const list = meetings(); list.push(m); sv("meetings", list);
         return {ok:true, meeting: m};
       },
@@ -866,11 +888,11 @@ const CONFIG = {
       },
       host(d){
         const m = findM(d.m); if(!m || d.k !== m.k) return E("key", "ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว");
-        const now = Date.now(), s = slot(now), db = data();
+        const now = Date.now(), s = slot(m, now), db = data(), qm = qmOf(m);
         return {ok:true, meeting: pub(m), departments: invited(m, db), members: db.members,
           records: checkins().filter(r => r.m === m.id && r.tid !== "leave").map(r => ({time:r.time, name:r.name, dept:r.dept, manual: r.tid === "manual"})),
           leaves: checkins().filter(r => r.m === m.id && r.tid === "leave").map(r => ({time:r.time, name:r.name, dept:r.dept})),
-          token: qtok(m, s), msLeft: (s + 1) * QR_S * 1000 - now, qrSeconds: QR_S, closed: windowError(m, now), serverTime: now};
+          token: qtok(m, s), fixed: !qm, msLeft: qm ? (s + 1) * qm * 60000 - now : 0, qrSeconds: qm * 60, closed: windowError(m, now), serverTime: now};
       },
       claim(d){
         const m = findM(d.m); if(!m) return E("meeting", "ไม่พบการประชุมนี้");
@@ -878,7 +900,7 @@ const CONFIG = {
         if(closed) return Object.assign(E("closed", closed), {meeting: pub(m)});
         let ticket = "";
         if(d.ticket && readTicket(m, d.ticket, now)) ticket = d.ticket;
-        else if(d.q){ const cur = slot(now); for(let i = 0; i <= GRACE; i++) if(qtok(m, cur - i) === d.q){ ticket = mkTicket(m, now); break; } }
+        else if(d.q){ const cur = slot(m, now); if(!qmOf(m)){ if(qtok(m, cur) === d.q) ticket = mkTicket(m, now); } else for(let i = 0; i <= GRACE; i++) if(qtok(m, cur - i) === d.q){ ticket = mkTicket(m, now); break; } }
         if(!ticket) return E("expired", "QR หมดอายุ");
         const db = data(), depts = invited(m, db), dk = new Set(depts.map(key));
         return {ok:true, meeting: pub(m), ticket, departments: depts,
@@ -905,6 +927,16 @@ const CONFIG = {
         if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง");
         const db = data();
         if(d.op === "addDept"){ const x = norm(d.dept); if(!x) return E("input", "กรุณากรอกชื่อส่วนงาน"); if(!findDept(db.departments, x)) db.departments.push(x); }
+        if(d.op === "renameDept"){
+          const from = findDept(db.departments, d.dept), to = norm(d.to).slice(0, 60);
+          if(!from) return E("input", "ไม่พบส่วนงานนี้"); if(!to) return E("input", "กรุณากรอกชื่อส่วนงาน");
+          if(key(to) !== key(from) && findDept(db.departments, to)) return E("input", "มีส่วนงานชื่อนี้แล้ว");
+          const sw = x => key(x) === key(from) ? to : x;
+          db.departments = db.departments.map(sw); db.members.forEach(x => { x.dept = sw(x.dept); });
+          db.groups.forEach(g => { g.depts = g.depts.map(sw); });
+          sv("meetings", meetings().map(m => Object.assign({}, m, {g: (m.g || []).map(sw)})));
+          sv("checkins", checkins().map(r => Object.assign({}, r, {dept: sw(r.dept)})));
+        }
         if(d.op === "delDept"){ db.departments = db.departments.filter(x => key(x) !== key(d.dept)); db.members = db.members.filter(x => key(x.dept) !== key(d.dept)); }
         if(d.op === "addNames"){
           const dept = findDept(db.departments, d.dept); if(!dept) return E("input", "ไม่พบส่วนงานนี้");
@@ -1087,6 +1119,11 @@ const CONFIG = {
       load();
       $("schedRefresh").onclick = load;
 
+      $("fQrMode").onchange = () => {
+        const fixed = $("fQrMode").value === "fixed";
+        show("fQrMin", !fixed);
+        $("fQrHint").textContent = fixed ? "QR ไม่เปลี่ยน แสดงได้ตั้งแต่สร้างการประชุม แต่สแกนเช็คอินได้เฉพาะช่วงเวลาเปิด–ปิดสแกน (ใครมีลิงก์หรือรูป QR ก็สแกนได้)" : "QR เปลี่ยนใหม่ตามนาทีที่ตั้ง ส่งลิงก์หรือถ่ายรูป QR ไปเช็คอินนอกห้องไม่ได้";
+      };
       $("createForm").onsubmit = async ev => {
         ev.preventDefault();
         show("fErr", false);
@@ -1100,6 +1137,7 @@ const CONFIG = {
         $("fSubmit").disabled = true;
         try{
           await call("createMeeting", {pin, t: $("fTitle").value, h: $("fHost").value, d: $("fDate").value, s, l, e, r: $("fRoom").value,
+            qm: $("fQrMode").value === "fixed" ? 0 : Math.max(1, Math.min(120, Math.round(Number($("fQrMin").value) || 1))),
             g: picked.length === boxes.length ? [] : picked});   // เลือกครบ = ทุกส่วนงาน (รวมที่เพิ่มภายหลัง)
           $("fTitle").value = ""; $("fRoom").value = "";
           await load();
@@ -1135,7 +1173,7 @@ const CONFIG = {
           list.appendChild(b);
         });
         const has = !!cur;
-        show("addNamesForm", has); show("delDeptBtn", has);
+        show("addNamesForm", has); show("delDeptBtn", has); show("renameDeptBtn", has);
         $("adTitle").textContent = has ? cur : "เลือกหรือเพิ่มส่วนงาน";
         const mem = db.members.filter(x => key(x.dept) === key(cur)).sort((a, b) => byThai(a.name, b.name));
         const auto = mem.filter(x => x.src === "เพิ่มตอนเช็คอิน").length;
@@ -1206,6 +1244,12 @@ const CONFIG = {
         const d = norm($("newDept").value); if(!d) return;
         if(await run("addDept", {dept: d})){ cur = db.departments.find(x => key(x) === key(d)) || cur; $("newDept").value = ""; render(); }
       };
+      $("renameDeptBtn").onclick = async () => {
+        const n = prompt("แก้ชื่อส่วนงาน", cur);
+        const to = norm(n);
+        if(!to || to === cur) return;
+        if(await run("renameDept", {dept: cur, to})){ cur = db.departments.find(x => key(x) === key(to)) || cur; render(); }
+      };
       $("delDeptBtn").onclick = () => {
         const n = db.members.filter(x => key(x.dept) === key(cur)).length;
         if(confirm("ลบส่วนงาน \"" + cur + "\"" + (n ? " และรายชื่อทั้งหมด " + n + " คน" : "") + "?\n(ประวัติการเช็คอินเดิมไม่ถูกลบ)")) run("delDept", {dept: cur});
@@ -1252,18 +1296,19 @@ const CONFIG = {
     show("viewDash", true); show("homeLink", true);
     document.body.classList.add("wide");   // แดชบอร์ดใช้เต็มความกว้างจอ
     let m = null, records = [], leaves = [], depts = [], members = [], tab = "check";
-    let token = "", deadline = 0, qrSec = 60, lastFetch = 0, closed = null, fails = 0;
+    let token = "", deadline = 0, qrSec = 60, lastFetch = 0, closed = null, fixed = false, fails = 0;
+    const noQr = () => !!closed && !fixed;   // QR ไม่เปลี่ยน: แสดง QR ได้ตลอด แม้ยังไม่ถึงเวลาสแกน
 
     // ---- QR ลอยบนสไลด์ (Document Picture-in-Picture: หน้าต่างอยู่บนสุดเสมอ ทับ PowerPoint ได้) ----
     let pipWin = null;
     function syncPip(){
       if(!pipWin) return;
-      const d = pipWin.document, closedNow = !!closed;
+      const d = pipWin.document, closedNow = noQr();
       d.getElementById("qr").innerHTML = closedNow ? "" : $("dQr").innerHTML;
-      d.getElementById("msg").textContent = closedNow ? tr(closed) : "";
+      d.getElementById("msg").textContent = closed ? tr(closed) : "";
       d.getElementById("cnt").textContent = tr("เช็คอินแล้ว") + " " + records.length + " " + tr("คน");
       d.getElementById("t").textContent = m ? m.t : "";
-      d.getElementById("track").style.display = closedNow ? "none" : "";
+      d.getElementById("track").style.display = closedNow || fixed ? "none" : "";
     }
     async function openPip(){
       if(pipWin){ pipWin.focus(); return; }
@@ -1446,12 +1491,13 @@ const CONFIG = {
         depts = j.departments; members = j.members;
         records = j.records.slice().sort((a, b) => new Date(a.time) - new Date(b.time));
         leaves = j.leaves || [];
-        closed = j.closed; qrSec = j.qrSeconds;
-        deadline = Date.now() + j.msLeft;
-        show("dQrWrap", !closed); show("dClosed", !!closed); $("dClosed").textContent = closed || "";
-        show("pQr", !closed); show("pClosed", !!closed); $("pClosed").textContent = closed || "";
-        document.querySelector("#present .countdown").classList.toggle("hidden", !!closed);
-        if(!closed) setQr(j.token);
+        closed = j.closed; fixed = !!j.fixed; qrSec = j.qrSeconds;
+        deadline = fixed ? 0 : Date.now() + j.msLeft;
+        show("dQrWrap", !noQr()); show("dClosed", !!closed); $("dClosed").textContent = closed || "";
+        show("pQr", !noQr()); show("pClosed", !!closed); $("pClosed").textContent = closed || "";
+        document.querySelector("#present .countdown").classList.toggle("hidden", noQr() || fixed);
+        document.querySelector("#dQrWrap .countdown").classList.toggle("hidden", fixed);
+        if(!noQr()) setQr(j.token);
         render();
         $("dUpdated").textContent = "อัปเดตล่าสุด " + fmtTime(new Date().toISOString()) + " น.";
       }catch(e){
@@ -1466,7 +1512,7 @@ const CONFIG = {
     }
     function tick(){
       const now = Date.now();
-      if(deadline && !closed){
+      if(deadline && !closed && !fixed){
         const left = Math.max(0, deadline - now);
         const pct = Math.min(100, left / (qrSec * 1000) * 100) + "%";
         const txt = "QR เปลี่ยนใหม่ใน " + Math.ceil(left / 1000) + " วินาที";
@@ -1474,8 +1520,8 @@ const CONFIG = {
         $("dCd").textContent = txt; $("pCd").textContent = txt;
         if(pipWin){ const b = pipWin.document.getElementById("bar"); if(b) b.style.width = pct; }
       }
-      if(document.hidden && !closed) return;
-      if((deadline && now >= deadline + 200 && !closed) || now - lastFetch >= 5000) refresh();
+      if(document.hidden && !noQr()) return;
+      if((deadline && now >= deadline + 200 && !closed && !fixed) || now - lastFetch >= 5000) refresh();
     }
     const timer = setInterval(tick, 250);
     refresh();
@@ -1694,8 +1740,8 @@ const CONFIG = {
     };
     const head = mt => { if(!mt) return; $("aTitle").textContent = mt.t; $("aSub").textContent = subLine(mt) + " · " + windowText(mt); show("aHead", true); document.title = "เช็คอิน · " + mt.t; };
     const stopFor = e => {
-      if(e.code === "closed"){ head(e.data && e.data.meeting); stop(e.message.startsWith("ยังไม่") ? "ยังไม่เปิดให้เช็คอิน" : "ปิดรับเช็คอินแล้ว", e.message); }
-      else if(e.code === "expired" || e.code === "used") stop("QR หมดอายุ", "QR เปลี่ยนใหม่ทุก 1 นาที กรุณาสแกน QR บนจอในห้องประชุมใหม่อีกครั้ง");
+      if(e.code === "closed"){ head(e.data && e.data.meeting); stop(e.message.startsWith("ยังไม่") ? "ยังไม่ถึงเวลาเริ่มสแกน" : "ปิดรับเช็คอินแล้ว", e.message); }
+      else if(e.code === "expired" || e.code === "used") stop("QR หมดอายุ", "กรุณาสแกน QR บนจอในห้องประชุมใหม่อีกครั้ง");
       else if(e.code === "meeting" && !API) stop("ยังไม่ได้เชื่อม Google Sheet", "แอปยังอยู่ในโหมดทดลอง ข้อมูลการประชุมอยู่ในเครื่องที่สร้างการประชุมเท่านั้น โทรศัพท์เครื่องอื่นจึงหาไม่เจอ ผู้จัดต้องตั้งค่า Google Sheet และใส่ API_URL ก่อน (ดู README.md)");
       else if(e.code === "meeting") stop("ไม่พบการประชุม", "การประชุมนี้อาจถูกยกเลิกแล้ว");
       else stop("เชื่อมต่อไม่สำเร็จ", "กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง", true);
