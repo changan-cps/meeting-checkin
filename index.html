@@ -248,6 +248,8 @@ const CONFIG = {
   .bi .bt{font-size:.78em;font-weight:400;color:#8a96a8;margin-left:5px}
   .pill .bi .bz,.pill .bi .bt,.st .bi .bz,.st .bi .bt,button .bi .bz,button .bi .bt,.tile .bi .bz,.closedbox .bi .bz,.err .bi .bz{color:inherit}
   .pill .bi .bt,.st .bi .bt,button .bi .bt{opacity:.8}
+  .meeting-head .bi .bz,.meeting-head .bi .bt{color:inherit}.meeting-head .bi .bt{opacity:.75}
+  .meeting-head .subth{opacity:.7;font-size:.88em;margin-top:2px}
   /* ปฏิทินการประชุม */
   .cal{margin-top:12px}
   .calnav{display:flex;align-items:center;gap:6px;margin-bottom:8px}
@@ -733,6 +735,7 @@ const CONFIG = {
     "แก้ไขการประชุม": ["编辑会议", "Edit meeting"],
     "ปฏิทิน": ["日历", "Calendar"],
     "ลาทั้งหมด": ["全部请假", "All on leave"],
+    "QR นี้ตั้งเป็น \"ไม่เปลี่ยน\" แล้ว แก้ไขรายละเอียดได้ QR ยังเป็นอันเดิม (ล็อกการตั้ง QR ไว้ เพื่อให้ QR ที่พิมพ์หรือแชร์ไปแล้วใช้ได้ต่อ)": ["此二维码已设为“不更换”。可修改会议信息，二维码保持不变（二维码设置已锁定，已打印或分享的二维码仍可使用）", "This QR is set to \"never change\". You can edit the details and the QR stays the same (the QR setting is locked so printed or shared QR codes keep working)"],
     "· ฟ้า = ลาทั้งหมด": ["· 蓝 = 全部请假", "· Blue = all on leave"],
     "แสดง QR ตอนนี้ (เปลี่ยนเป็น QR ไม่เปลี่ยน)": ["立即显示二维码（改为固定二维码）", "Show QR now (switch to a fixed QR)"],
     "เปลี่ยนการประชุมนี้เป็น QR ไม่เปลี่ยน เพื่อแสดง QR ได้ตั้งแต่ตอนนี้?\n(สแกนเช็คอินได้เมื่อถึงเวลาเปิดสแกนเท่านั้น)": ["将本会议改为固定二维码，立即显示二维码？\n（仍需到开始时间才能扫码签到）", "Switch this meeting to a fixed QR so it can be shown now?\n(Check-in still only works once scanning opens)"],
@@ -890,7 +893,7 @@ const CONFIG = {
   }
   const SKIP = {SCRIPT: 1, STYLE: 1, TEXTAREA: 1, NOSCRIPT: 1};
   // หน้าแดชบอร์ด/ฉาย QR แสดง 2 ภาษา (เมื่อเลือก TH หรือ 中文): จีนตัวหนาเข้ม + ไทยตัวเล็กสีเทา
-  const BI = LANG !== "en", BI_ZONE = "#viewDash, #present";
+  const BI = LANG !== "en", BI_ZONE = "#viewDash, #present, #viewAttend";
   const inBi = n => BI && n.parentElement && n.parentElement.closest(BI_ZONE) && !n.parentElement.closest(".bi");
   function biText(n){
     const m = n.nodeValue.match(/^(\s*)([\s\S]*?)(\s*)$/), th = m[2];
@@ -909,7 +912,13 @@ const CONFIG = {
       const v = n.nodeValue, t = tr(v); if(t !== v) n.nodeValue = t;
     }else if(n.nodeType === 1){
       if(n.classList.contains("bi")) return;
+      // ช่องพิมพ์ในหน้า 2 ภาษา: placeholder = จีน · ไทย
+      if(BI && n.hasAttribute("placeholder") && !n.dataset.bi && n.closest(BI_ZONE)){
+        const th = n.getAttribute("placeholder"), zh = trL(th, 0);
+        if(zh !== th && !HAS_THAI.test(zh)){ n.setAttribute("placeholder", zh + " · " + th); n.dataset.bi = "1"; }
+      }
       if(LANG !== "th") for(const a of ["placeholder", "title", "aria-label", "alt"]){
+        if(a === "placeholder" && n.dataset.bi) continue;
         if(n.hasAttribute(a)){ const v = n.getAttribute(a), t = tr(v); if(t !== v) n.setAttribute(a, t); }
       }
       if(!SKIP[n.nodeName]) n.childNodes.forEach(trNode);
@@ -1010,7 +1019,7 @@ const CONFIG = {
         if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง");
         const list = meetings(), old = list.find(x => x.id === d.m); if(!old) return E("meeting", "ไม่พบการประชุมนี้");
         const r = A.createMeeting(Object.assign({}, d, {dry: true})); if(!r.ok) return r;
-        Object.assign(old, r.meeting, {id: old.id, k: old.k}); sv("meetings", list);
+        Object.assign(old, r.meeting, {id: old.id, k: old.k, qm: qmOf(old) === 0 ? 0 : r.meeting.qm}); sv("meetings", list);
         sv("checkins", checkins().map(c => c.m === old.id ? Object.assign({}, c, {t: old.t}) : c));
         return {ok:true, meetings: counts(meetings())};
       },
@@ -1496,6 +1505,10 @@ const CONFIG = {
         $("fHead").textContent = "แก้ไขการประชุม"; $("fSubmit").textContent = "บันทึกการแก้ไข"; show("fCancel", true);
         $("fTitle").value = m.t; $("fDate").value = m.d; show("fTplHint", false);
         fillFrom(m);
+        // QR ไม่เปลี่ยน: ล็อกไว้ แก้รายละเอียดอื่นได้ QR ยังเป็นอันเดิม
+        const locked = Number(m.qm) === 0 && m.qm !== "" && m.qm != null;
+        $("fQrMode").disabled = locked;
+        if(locked) $("fQrHint").textContent = "QR นี้ตั้งเป็น \"ไม่เปลี่ยน\" แล้ว แก้ไขรายละเอียดได้ QR ยังเป็นอันเดิม (ล็อกการตั้ง QR ไว้ เพื่อให้ QR ที่พิมพ์หรือแชร์ไปแล้วใช้ได้ต่อ)";
         show("fErr", false); smartUpdate();
         $("createForm").scrollIntoView({behavior: "smooth", block: "start"}); $("fTitle").focus({preventScroll: true});
       }
@@ -1513,7 +1526,7 @@ const CONFIG = {
         $("fTitle").value = ""; $("fHost").value = ""; $("fRoom").value = ""; $("fDesc").value = ""; $("fDate").value = todayStr();
         $("fRepeat").value = ""; $("fUntil").value = ""; show("fUntil", false); show("fTplHint", false); dateTouched = false;
         $("fOpen").value = CONFIG.DEFAULT_OPEN; $("fLate").value = CONFIG.DEFAULT_LATE; $("fClose").value = CONFIG.DEFAULT_CLOSE;
-        setQrMode(1); setAll(true); show("fErr", false); smartUpdate();
+        $("fQrMode").disabled = false; setQrMode(1); setAll(true); show("fErr", false); smartUpdate();
       }
       $("fCancel").onclick = resetForm;
 
@@ -2145,7 +2158,12 @@ const CONFIG = {
       $("aStopTitle").textContent = title; $("aStopMsg").textContent = msg;
       show("aRetry", !!retry); show("aStop", true);
     };
-    const head = mt => { if(!mt) return; $("aTitle").textContent = mt.t; $("aSub").textContent = subLine(mt) + " · " + windowText(mt); show("aHead", true); document.title = "เช็คอิน · " + mt.t; };
+    const head = mt => { if(!mt) return; $("aTitle").textContent = mt.t; $("aSub").textContent = subLine(mt) + " · " + windowText(mt);
+      if(BI){   // 2 ภาษา: บรรทัดจีน (วันที่แบบจีน) + บรรทัดไทย
+        const dzh = mt.d ? new Date(mt.d + "T00:00:00+07:00").toLocaleDateString("zh-CN", {weekday:"short", month:"long", day:"numeric", year:"numeric", timeZone:TZ}) : "";
+        const zh = [dzh, mt.r].filter(Boolean).join(" · ") + " · " + trL(windowText(mt), 0);
+        if(!HAS_THAI.test(zh)){ const th = $("aSub").textContent; $("aSub").textContent = ""; $("aSub").append(el("div", null, zh), el("div", "subth", th)); }
+      } show("aHead", true); document.title = "เช็คอิน · " + mt.t; };
     const stopFor = e => {
       if(e.code === "closed"){ head(e.data && e.data.meeting); stop(e.message.startsWith("ยังไม่") ? "ยังไม่ถึงเวลาเริ่มสแกน" : "ปิดรับเช็คอินแล้ว", e.message); }
       else if(e.code === "expired" || e.code === "used") stop("QR หมดอายุ", "กรุณาสแกน QR บนจอในห้องประชุมใหม่อีกครั้ง");
