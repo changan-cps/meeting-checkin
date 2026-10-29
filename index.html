@@ -419,6 +419,9 @@ const CONFIG = {
       <div class="card">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
           <h2 style="flex:1;margin:0" id="adTitle"></h2>
+          <button class="ghost small" id="upDeptBtn" type="button" title="เลื่อนขึ้น" aria-label="เลื่อนขึ้น">↑</button>
+          <button class="ghost small" id="downDeptBtn" type="button" title="เลื่อนลง" aria-label="เลื่อนลง">↓</button>
+          <select id="afterDept" aria-label="ย้ายไปไว้หลัง" style="width:auto;max-width:170px;padding:6px 8px;font-size:13px"></select>
           <button class="ghost small" id="renameDeptBtn" type="button">แก้ชื่อส่วนงาน</button>
           <button class="danger small" id="delDeptBtn" type="button">ลบส่วนงาน</button>
         </div>
@@ -735,6 +738,11 @@ const CONFIG = {
     "แก้ไขการประชุม": ["编辑会议", "Edit meeting"],
     "ปฏิทิน": ["日历", "Calendar"],
     "ลาทั้งหมด": ["全部请假", "All on leave"],
+    "เลื่อนขึ้น": ["上移", "Move up"],
+    "เลื่อนลง": ["下移", "Move down"],
+    "ย้ายไปไว้หลัง": ["移到…之后", "Move after"],
+    "ย้ายไปไว้หลัง…": ["移到…之后", "Move after…"],
+    "⤒ บนสุด": ["⤒ 置顶", "⤒ Top"],
     "QR นี้ตั้งเป็น \"ไม่เปลี่ยน\" แล้ว แก้ไขรายละเอียดได้ QR ยังเป็นอันเดิม (ล็อกการตั้ง QR ไว้ เพื่อให้ QR ที่พิมพ์หรือแชร์ไปแล้วใช้ได้ต่อ)": ["此二维码已设为“不更换”。可修改会议信息，二维码保持不变（二维码设置已锁定，已打印或分享的二维码仍可使用）", "This QR is set to \"never change\". You can edit the details and the QR stays the same (the QR setting is locked so printed or shared QR codes keep working)"],
     "· ฟ้า = ลาทั้งหมด": ["· 蓝 = 全部请假", "· Blue = all on leave"],
     "แสดง QR ตอนนี้ (เปลี่ยนเป็น QR ไม่เปลี่ยน)": ["立即显示二维码（改为固定二维码）", "Show QR now (switch to a fixed QR)"],
@@ -1118,6 +1126,13 @@ const CONFIG = {
           db.groups.forEach(g => { g.depts = g.depts.map(sw); });
           sv("meetings", meetings().map(m => Object.assign({}, m, {g: (m.g || []).map(sw)})));
           sv("checkins", checkins().map(r => Object.assign({}, r, {dept: sw(r.dept)})));
+        }
+        if(d.op === "moveDept"){
+          const i = db.departments.findIndex(x => key(x) === key(d.dept)); if(i < 0) return E("input", "ไม่พบส่วนงานนี้");
+          const x = db.departments.splice(i, 1)[0];
+          let to = i + (Number(d.dir) || 0);
+          if(d.after != null) to = d.after === "" ? 0 : db.departments.findIndex(y => key(y) === key(d.after)) + 1;
+          db.departments.splice(Math.max(0, Math.min(db.departments.length, to)), 0, x);
         }
         if(d.op === "delDept"){ db.departments = db.departments.filter(x => key(x) !== key(d.dept)); db.members = db.members.filter(x => key(x.dept) !== key(d.dept)); }
         if(d.op === "addNames"){
@@ -1583,6 +1598,14 @@ const CONFIG = {
         });
         const has = !!cur;
         show("addNamesForm", has); show("delDeptBtn", has); show("renameDeptBtn", has);
+        const ci = db.departments.findIndex(d => key(d) === key(cur));
+        show("upDeptBtn", has); show("downDeptBtn", has); show("afterDept", has);
+        $("upDeptBtn").disabled = ci <= 0; $("downDeptBtn").disabled = ci < 0 || ci >= db.departments.length - 1;
+        // ย้ายไปไว้หลังส่วนงานที่เลือก (ลำดับนี้ใช้ใน Dashboard ทุกการประชุม)
+        const sel = $("afterDept"); sel.innerHTML = "";
+        const o0 = el("option", null, "ย้ายไปไว้หลัง…"); o0.value = "\u0001"; sel.appendChild(o0);
+        const top = el("option", null, "⤒ บนสุด"); top.value = ""; sel.appendChild(top);
+        db.departments.forEach(d => { if(key(d) !== key(cur)){ const o = el("option", null, d); o.value = d; sel.appendChild(o); } });
         $("adTitle").textContent = has ? cur : "เลือกหรือเพิ่มส่วนงาน";
         const mem = db.members.filter(x => key(x.dept) === key(cur)).sort((a, b) => byThai(a.name, b.name));
         const auto = mem.filter(x => x.src === "เพิ่มตอนเช็คอิน").length;
@@ -1653,6 +1676,9 @@ const CONFIG = {
         const d = norm($("newDept").value); if(!d) return;
         if(await run("addDept", {dept: d})){ cur = db.departments.find(x => key(x) === key(d)) || cur; $("newDept").value = ""; render(); }
       };
+      $("upDeptBtn").onclick = () => run("moveDept", {dept: cur, dir: -1});
+      $("downDeptBtn").onclick = () => run("moveDept", {dept: cur, dir: 1});
+      $("afterDept").onchange = () => { const v = $("afterDept").value; if(v !== "\u0001") run("moveDept", {dept: cur, after: v}); };
       $("renameDeptBtn").onclick = async () => {
         const n = prompt("แก้ชื่อส่วนงาน", cur);
         const to = norm(n);
