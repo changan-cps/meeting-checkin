@@ -85,8 +85,14 @@ const CONFIG = {
   .sched .t{font-weight:600}
   .sched .acts{white-space:nowrap;text-align:right}
   .sched .acts button{margin-left:4px}
-  .sched tr.past td{color:var(--muted)}
-  .sched tr.past .t{color:var(--ink)}
+  /* สีแถวตามวันที่: ผ่านไปแล้ว = เทา, วันนี้ = เขียว, ยังไม่ถึง = ฟ้า */
+  .sched tr.past td{color:var(--muted);background:#f1f3f6}
+  .sched tr.past .t{color:var(--muted)}
+  .sched tr.today td{background:var(--ok-bg)}
+  .sched tr.future td{background:#e6f1fc}
+  .sched tr.past td:first-child{box-shadow:inset 4px 0 0 #a3adbb}
+  .sched tr.today td:first-child{box-shadow:inset 4px 0 0 var(--ok)}
+  .sched tr.future td:first-child{box-shadow:inset 4px 0 0 #2b7fd8}
   .secthead{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:14px 8px 6px;border-bottom:1px solid var(--line)}
   .att{font-weight:600;white-space:nowrap}
 
@@ -132,6 +138,10 @@ const CONFIG = {
   .tile.late .dn,.tile.late .ct{color:var(--bad)}
   .tile .st{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:middle;background:var(--bad);color:#fff}
   .tile.on .st{background:var(--ok)}
+  .tile.leave{background:#e6f1fc;border-color:#a9cdf3}
+  .tile.leave:hover{background:#d8e9fb}
+  .tile.leave .dn,.tile.leave .ct{color:#1d5fa8}
+  .tile.leave .st{background:#2b7fd8}
   .tile .full{display:inline-block;font-size:11px;font-weight:700;background:var(--ok);color:#fff;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:middle}
   .tile.empty{opacity:.55;cursor:default}
   .pos{color:var(--muted);font-size:13px;margin-left:6px}
@@ -233,6 +243,52 @@ const CONFIG = {
   .pf .dept{font-size:11px}
   .pf tr{page-break-inside:avoid}
   .pfoot{display:flex;justify-content:space-between;font-size:10.5px;margin-top:6px;color:#000}
+  /* แดชบอร์ด 2 ภาษา: จีนตัวหนาเข้ม + ไทยตัวเล็กสีเทา */
+  .bi .bz{font-weight:700;color:var(--ink)}
+  .bi .bt{font-size:.78em;font-weight:400;color:#8a96a8;margin-left:5px}
+  .pill .bi .bz,.pill .bi .bt,.st .bi .bz,.st .bi .bt,button .bi .bz,button .bi .bt,.tile .bi .bz,.closedbox .bi .bz,.err .bi .bz{color:inherit}
+  .pill .bi .bt,.st .bi .bt,button .bi .bt{opacity:.8}
+  /* ปฏิทินการประชุม */
+  .cal{margin-top:12px}
+  .calnav{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .calnav b{font-size:18px;min-width:150px;text-align:center}
+  .calnav .sp{flex:1}
+  .calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .calgrid .wd{font-size:12px;color:var(--muted);padding:6px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--soft);text-align:center}
+  .calgrid .day{min-height:96px;padding:4px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0;cursor:pointer;transition:background .15s}
+  .calgrid .day:hover{background:#f5f9ff}
+  .calgrid .day.pastday{cursor:default;background:#fbfbfc}
+  .calgrid .day.out .dn{color:#b3bccb}
+  .calgrid .dn{font-size:13px;font-weight:700;display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:50%}
+  .calgrid .day.today .dn{background:#2b7fd8;color:#fff}
+  .calgrid .ev{font-size:12px;line-height:1.35;padding:2px 6px;margin-top:3px;border-radius:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-weight:600;background:#e6f1fc;color:#1d5fa8;border-left:3px solid #2b7fd8}
+  .calgrid .ev:hover{filter:brightness(.96)}
+  .calgrid .ev.past{background:#eef0f3;color:var(--muted);border-left-color:#a3adbb}
+  .calgrid .ev.today{background:var(--ok-bg);color:var(--ok);border-left-color:var(--ok)}
+  .calgrid .ev.live{background:var(--ok);color:#fff;border-left-color:#0b5c41}
+  .calgrid .ev i{font-style:normal;font-weight:400;margin-right:4px;opacity:.85}
+  .calgrid .day:not(.expanded) .ev.x{display:none}
+  .calgrid .more{font-size:12px;color:var(--brand);padding:2px 6px;cursor:pointer;font-weight:600}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
+  .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .legend .lp::before{background:#a3adbb}.legend .lt::before{background:var(--ok)}.legend .lf::before{background:#2b7fd8}
+  .evcard{max-width:480px!important}
+  .evhead{display:flex;align-items:flex-start;gap:10px}
+  .evhead h2{flex:1;margin:0 0 4px}
+  .evrows{margin:12px 0;border-top:1px solid var(--line)}
+  .evrows .r{display:grid;grid-template-columns:120px 1fr;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .evrows .r .k{color:var(--muted)}
+  .evrows .r .v{white-space:pre-wrap;word-break:break-word}
+  .evacts{display:flex;flex-wrap:wrap;gap:6px}
+  /* ฟอร์มอัจฉริยะ */
+  .avail{margin-top:8px;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600}
+  .avail.ok{background:var(--ok-bg);color:var(--ok)}
+  .avail.warn{background:var(--warn-bg);color:var(--warn)}
+  .avail.bad{background:var(--bad-bg);color:var(--bad)}
+  .avail div{font-weight:400}.avail .ah{font-weight:700}
+  .people{margin-top:8px;font-size:13px;font-weight:600;color:var(--ok)}
+  .tplhint{background:var(--brand-bg);color:var(--brand);padding:6px 10px;border-radius:8px;margin-top:6px}
+  @media (max-width:600px){ .calgrid .day{min-height:64px;padding:2px} .calgrid .ev{font-size:11px;padding:1px 3px} .calgrid .ev i{display:none} .evrows .r{grid-template-columns:96px 1fr} }
   @media (max-width:860px){ .grid2,.dash,.admin{grid-template-columns:1fr} }
   @media (max-width:420px){ .row3{grid-template-columns:1fr 1fr} }
 </style>
@@ -264,20 +320,36 @@ const CONFIG = {
   <section id="viewHome" class="hidden">
     <div class="grid2">
       <div class="card">
-        <h2>สร้างการประชุม</h2>
+        <h2 id="fHead">สร้างการประชุม</h2>
         <form id="createForm">
           <label for="fTitle">ชื่อการประชุม</label>
-          <input id="fTitle" required maxlength="80" placeholder="เช่น CPS Monthly Meeting">
+          <input id="fTitle" required maxlength="80" placeholder="เช่น CPS Monthly Meeting" list="fTitleList" autocomplete="off">
+          <datalist id="fTitleList"></datalist>
+          <div class="hint tplhint hidden" id="fTplHint"></div>
           <label for="fHost">ผู้จัด / หน่วยงานเจ้าภาพ (Host)</label>
           <input id="fHost" maxlength="60" placeholder="เช่น MFG">
           <label for="fDate">วันที่</label>
           <input id="fDate" type="date" required>
+          <div id="fRepeatRow">
+            <label for="fRepeat">ทำซ้ำ</label>
+            <div class="row3" style="grid-template-columns:1fr 1fr">
+              <select id="fRepeat">
+                <option value="">ไม่ทำซ้ำ</option>
+                <option value="7">ทุกสัปดาห์</option>
+                <option value="14">ทุก 2 สัปดาห์</option>
+                <option value="m">ทุกเดือน</option>
+              </select>
+              <input id="fUntil" type="date" class="hidden" aria-label="ทำซ้ำถึงวันที่" title="ทำซ้ำถึงวันที่">
+            </div>
+            <div class="hint hidden" id="fRepeatHint"></div>
+          </div>
           <div class="row3">
             <div><label for="fOpen">เปิดสแกน</label><input id="fOpen" type="time" required></div>
             <div><label for="fLate">สายหลัง</label><input id="fLate" type="time"></div>
             <div><label for="fClose">ปิดสแกน</label><input id="fClose" type="time" required></div>
           </div>
           <div class="hint">QR สแกนได้เฉพาะช่วงเปิด–ปิดของวันที่กำหนด เช็คอินหลังเวลา "สายหลัง" นับเป็นสาย</div>
+          <div class="avail hidden" id="fAvail"></div>
           <label for="fQrMode">QR Code</label>
           <div class="row3" style="grid-template-columns:1fr 1fr">
             <select id="fQrMode" aria-label="QR Code">
@@ -289,23 +361,39 @@ const CONFIG = {
           <div class="hint" id="fQrHint">QR เปลี่ยนใหม่ตามนาทีที่ตั้ง ส่งลิงก์หรือถ่ายรูป QR ไปเช็คอินนอกห้องไม่ได้</div>
           <label for="fRoom">ห้อง / สถานที่</label>
           <input id="fRoom" maxlength="60" placeholder="เช่น Meeting Room 2">
+          <label for="fDesc">รายละเอียด</label>
+          <textarea id="fDesc" maxlength="1000" rows="3" style="min-height:76px" placeholder="เช่น หัวข้อที่จะคุยในการประชุมนี้"></textarea>
           <div class="labelrow" style="margin-top:12px">
             <label>ส่วนงานที่ต้องเข้าประชุม</label>
             <span class="muted"><button type="button" class="link" id="selAll">ทั้งหมด</button> · <button type="button" class="link" id="selNone">ล้าง</button></span>
           </div>
           <div class="gpick hidden" id="fGroups"></div>
           <div class="chips" id="fDepts"><span class="muted">กำลังโหลด...</span></div>
+          <div class="people" id="fPeople"></div>
           <div class="err hidden" id="fErr"></div>
           <button type="submit" id="fSubmit" style="width:100%;margin-top:18px">สร้างการประชุม</button>
+          <button type="button" class="ghost hidden" id="fCancel" style="width:100%;margin-top:8px">ยกเลิกการแก้ไข</button>
         </form>
       </div>
       <div class="card">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
           <h2 style="flex:1;margin:0">ตารางการประชุม</h2>
+          <div class="tabs" id="schedTabs"><button type="button" data-v="cal">ปฏิทิน</button><button type="button" data-v="list">รายการ</button></div>
           <button class="ghost small" id="schedRefresh" type="button">รีเฟรช</button>
         </div>
-        <div class="muted">กด "เปิด" เพื่อฉาย QR หรือดูรายชื่อผู้เข้าประชุมของแต่ละรอบ</div>
-        <div class="tablewrap"><table class="sched"><tbody id="schedBody"></tbody></table></div>
+        <div class="muted">กดการประชุมเพื่อดูรายละเอียด เปิด QR หรือแก้ไข · กดวันในปฏิทินเพื่อสร้างการประชุมวันนั้น</div>
+        <div class="cal hidden" id="calWrap">
+          <div class="calnav">
+            <button class="ghost small" id="calPrev" type="button" aria-label="เดือนก่อน">‹</button>
+            <b id="calTitle"></b>
+            <button class="ghost small" id="calNext" type="button" aria-label="เดือนถัดไป">›</button>
+            <span class="sp"></span>
+            <button class="ghost small" id="calToday" type="button">วันนี้</button>
+          </div>
+          <div class="calgrid" id="calGrid"></div>
+          <div class="legend"><span class="lp">ผ่านไปแล้ว</span><span class="lt">วันนี้</span><span class="lf">ยังไม่ถึง</span></div>
+        </div>
+        <div class="tablewrap hidden" id="schedList"><table class="sched"><tbody id="schedBody"></tbody></table></div>
         <div class="err hidden" id="schedErr"></div>
       </div>
     </div>
@@ -374,6 +462,7 @@ const CONFIG = {
           <div class="hint" id="pipHint">เปิดหน้าต่าง QR เล็ก ๆ ที่ลอยอยู่บนทุกโปรแกรม รวมถึง PowerPoint ตอนฉายสไลด์ ลากไปไว้มุมจอได้</div>
         </div>
         <div class="closedbox hidden" id="dClosed"></div>
+        <button class="ghost hidden" id="dFixBtn" type="button" style="width:100%;margin-top:10px">แสดง QR ตอนนี้ (เปลี่ยนเป็น QR ไม่เปลี่ยน)</button>
         <div class="err hidden" id="dErr"></div>
       </div>
       <div class="card">
@@ -409,6 +498,17 @@ const CONFIG = {
       </div>
     </div>
   </section>
+
+  <div id="evModal" class="modal hidden">
+    <div class="card evcard">
+      <div class="evhead">
+        <div style="flex:1"><h2 id="evTitle"></h2><span class="pill" id="evBadge"></span></div>
+        <button class="ghost small" id="evClose" type="button">ปิด</button>
+      </div>
+      <div class="evrows" id="evRows"></div>
+      <div class="evacts" id="evActs"></div>
+    </div>
+  </div>
 
   <div id="mModal" class="modal hidden">
     <div class="card">
@@ -630,6 +730,39 @@ const CONFIG = {
     "ยังไม่เปิดให้เช็คอิน": ["尚未开放签到", "Check-in not open yet"],
     "ยังไม่ถึงเวลาเริ่มสแกน": ["还未到开始扫码时间", "Scanning has not started yet"],
     "แก้ชื่อส่วนงาน": ["修改部门名称", "Rename department"],
+    "แก้ไขการประชุม": ["编辑会议", "Edit meeting"],
+    "ปฏิทิน": ["日历", "Calendar"],
+    "ลาทั้งหมด": ["全部请假", "All on leave"],
+    "· ฟ้า = ลาทั้งหมด": ["· 蓝 = 全部请假", "· Blue = all on leave"],
+    "แสดง QR ตอนนี้ (เปลี่ยนเป็น QR ไม่เปลี่ยน)": ["立即显示二维码（改为固定二维码）", "Show QR now (switch to a fixed QR)"],
+    "เปลี่ยนการประชุมนี้เป็น QR ไม่เปลี่ยน เพื่อแสดง QR ได้ตั้งแต่ตอนนี้?\n(สแกนเช็คอินได้เมื่อถึงเวลาเปิดสแกนเท่านั้น)": ["将本会议改为固定二维码，立即显示二维码？\n（仍需到开始时间才能扫码签到）", "Switch this meeting to a fixed QR so it can be shown now?\n(Check-in still only works once scanning opens)"],
+    "รายการ": ["列表", "List"],
+    "วันนี้": ["今天", "Today"],
+    "ผ่านไปแล้ว": ["已结束", "Past"],
+    "ยังไม่ถึง": ["即将召开", "Upcoming"],
+    "เดือนก่อน": ["上个月", "Previous month"],
+    "เดือนถัดไป": ["下个月", "Next month"],
+    "กดการประชุมเพื่อดูรายละเอียด เปิด QR หรือแก้ไข · กดวันในปฏิทินเพื่อสร้างการประชุมวันนั้น": ["点击会议查看详情、打开二维码或编辑 · 点击日历中的日期即可创建当天的会议", "Click a meeting to see details, open the QR or edit it · Click a day to create a meeting on that day"],
+    "สร้างการประชุมในวันที่นี้": ["在这一天创建会议", "Create a meeting on this day"],
+    "ทำซ้ำ": ["重复", "Repeat"],
+    "ไม่ทำซ้ำ": ["不重复", "Does not repeat"],
+    "ทุกสัปดาห์": ["每周", "Every week"],
+    "ทุก 2 สัปดาห์": ["每两周", "Every 2 weeks"],
+    "ทุกเดือน": ["每月", "Every month"],
+    "ทำซ้ำถึงวันที่": ["重复至", "Repeat until"],
+    "รายละเอียด": ["描述", "Description"],
+    "เช่น หัวข้อที่จะคุยในการประชุมนี้": ["例如：本次会议的议题", "e.g. topics for this meeting"],
+    "เวลา": ["时间", "Time"],
+    "สถานที่": ["地点", "Location"],
+    "ผู้จัด": ["主持人", "Host"],
+    "ผู้เข้าประชุม": ["参会人员", "Attendance"],
+    "สร้างซ้ำสัปดาห์หน้า": ["复制到下周", "Repeat next week"],
+    "✓ เวลานี้ว่าง ไม่มีการประชุมอื่นชนเวลา": ["✓ 该时段空闲，没有其他会议冲突", "✓ All clear — no other meeting at this time"],
+    "⚠ ห้องนี้มีการประชุมอื่นในเวลาเดียวกัน": ["⚠ 该会议室同一时段已有其他会议", "⚠ This room already has another meeting at this time"],
+    "มีการประชุมอื่นในช่วงเวลาเดียวกัน": ["同一时段还有其他会议", "Other meetings at the same time"],
+    "ห้องนี้มีการประชุมอื่นในเวลาเดียวกัน ต้องการบันทึกต่อหรือไม่?": ["该会议室同一时段已有其他会议，仍要保存吗？", "This room already has another meeting at this time. Save anyway?"],
+    "บันทึกการแก้ไข": ["保存修改", "Save changes"],
+    "ยกเลิกการแก้ไข": ["取消编辑", "Cancel editing"],
     "เปลี่ยนทุก ... นาที": ["每 ... 分钟更换", "Change every ... minutes"],
     "ไม่เปลี่ยน (ใช้ QR เดิมตลอด)": ["不更换（始终使用同一二维码）", "Never change (keep the same QR)"],
     "นาที": ["分钟", "minutes"],
@@ -707,6 +840,12 @@ const CONFIG = {
     [/^\+ อีก (\d+) คน$/, "+ 另 $1 人", "+ $1 more"],
     [/^(\d\d:\d\d(?::\d\d)?) น\.$/, "$1", "$1"],
     [/^ยังไม่เปิดให้เช็คอิน เปิดสแกนวันที่ (\S+) เวลา (\S+) น\.$/, "尚未开放签到，开放时间 $1 $2", "Check-in not open yet. Opens $1 at $2"],
+    [/^ผู้ต้องเข้าประชุม (\d+) คน จาก (\d+) ส่วนงาน$/, "应到 $1 人，来自 $2 个部门", "$1 attendees from $2 departments"],
+    [/^จะสร้าง (\d+) การประชุม/, "将创建 $1 场会议", "Will create $1 meetings"],
+    [/^เติมข้อมูลจากการประชุมชื่อเดียวกันครั้งล่าสุด \(([^)]+)\) ให้แล้ว แก้ไขได้$/, "已按上次同名会议（$1）自动填写，可修改", "Filled in from the last meeting with this name ($1). You can change it"],
+    [/^เปลี่ยนทุก (\d+) นาที$/, "每 $1 分钟更换", "Changes every $1 min"],
+    [/^มา (\d+) \/ (\d+) คน$/, "实到 $1 / $2 人", "$1 / $2 present"],
+    [/^มีการประชุมนี้ในวันที่ (\S+) อยู่แล้ว$/, "$1 已有该会议", "This meeting already exists on $1"],
     [/^ยังไม่ถึงเวลาเริ่มสแกน เริ่มสแกนได้วันที่ (\S+) เวลา (\S+) น\.$/, "还未到开始扫码时间，可于 $1 $2 开始扫码", "Scanning has not started yet. You can scan from $1 at $2"],
     [/^ปิดรับเช็คอินแล้ว \(รับถึง (\S+) น\. ของวันที่ (\S+)\)$/, "签到已结束（截止 $2 $1）", "Check-in closed (until $1 on $2)"],
     [/^([\s\S]+) เช็คอินการประชุมนี้ไปแล้ว ถ้าจะเช็คอินให้คนอื่น พิมพ์ชื่อด้านบน$/, "$1 已签到本次会议。如需为他人签到，请在上方输入姓名", "$1 has already checked in. To check in someone else, type their name above"],
@@ -737,8 +876,10 @@ const CONFIG = {
   ];
   const HAS_THAI = /[\u0E00-\u0E7F]/;
   const LI = LANG === "zh" ? 0 : 1;
-  function tr(str){
-    if(LANG === "th" || !str || !HAS_THAI.test(str)) return str;
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; };
+  function tr(str){ return LANG === "th" ? str : trL(str, LI); }
+  function trL(str, LI){
+    if(!str || !HAS_THAI.test(str)) return str;
     const m = String(str).match(/^(\s*)([\s\S]*?)(\s*)$/);
     const core = m[2];
     if(DICT[core]) return m[1] + DICT[core][LI] + m[3];
@@ -748,24 +889,41 @@ const CONFIG = {
     return m[1] + out + m[3];
   }
   const SKIP = {SCRIPT: 1, STYLE: 1, TEXTAREA: 1, NOSCRIPT: 1};
+  // หน้าแดชบอร์ด/ฉาย QR แสดง 2 ภาษา (เมื่อเลือก TH หรือ 中文): จีนตัวหนาเข้ม + ไทยตัวเล็กสีเทา
+  const BI = LANG !== "en", BI_ZONE = "#viewDash, #present";
+  const inBi = n => BI && n.parentElement && n.parentElement.closest(BI_ZONE) && !n.parentElement.closest(".bi");
+  function biText(n){
+    const m = n.nodeValue.match(/^(\s*)([\s\S]*?)(\s*)$/), th = m[2];
+    if(!th || !HAS_THAI.test(th)) return;
+    const zh = trL(th, 0);
+    if(zh === th || HAS_THAI.test(zh)) return;   // ไม่มีคำแปลครบ -> คงภาษาไทยไว้
+    if(n.parentElement.closest("select, option")){ n.nodeValue = m[1] + zh + "  " + th + m[3]; return; }
+    const sp = el("span", "bi"); sp.append(el("span", "bz", zh), el("span", "bt", th));
+    n.replaceWith(document.createTextNode(m[1]), sp, document.createTextNode(m[3]));
+  }
   function trNode(n){
     if(n.nodeType === 3){
       if(n.parentNode && SKIP[n.parentNode.nodeName]) return;
+      if(inBi(n)) return biText(n);
+      if(LANG === "th") return;
       const v = n.nodeValue, t = tr(v); if(t !== v) n.nodeValue = t;
     }else if(n.nodeType === 1){
-      for(const a of ["placeholder", "title", "aria-label", "alt"]){
+      if(n.classList.contains("bi")) return;
+      if(LANG !== "th") for(const a of ["placeholder", "title", "aria-label", "alt"]){
         if(n.hasAttribute(a)){ const v = n.getAttribute(a), t = tr(v); if(t !== v) n.setAttribute(a, t); }
       }
       if(!SKIP[n.nodeName]) n.childNodes.forEach(trNode);
     }
   }
-  if(LANG !== "th"){
-    document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
+  if(LANG !== "th" || BI){
+    if(LANG !== "th") document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
     trNode(document.documentElement);
     new MutationObserver(list => list.forEach(mu => {
       if(mu.type === "characterData") trNode(mu.target);
       else mu.addedNodes.forEach(trNode);
     })).observe(document.documentElement, {subtree: true, childList: true, characterData: true});
+  }
+  if(LANG !== "th"){
     const _confirm = window.confirm.bind(window), _prompt = window.prompt.bind(window);
     window.confirm = msg => _confirm(tr(msg));
     window.prompt = (msg, def) => _prompt(tr(msg), def);
@@ -777,7 +935,6 @@ const CONFIG = {
   });
 
   const $ = id => document.getElementById(id);
-  const el = (tag, cls, text) => { const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; };
   const show = (id, on) => $(id).classList.toggle("hidden", !on);
   const params = new URLSearchParams(location.search);
   const store = {
@@ -839,7 +996,7 @@ const CONFIG = {
     const meetings = () => ld("meetings", []);
     const findM = id => meetings().find(x => x.id === id) || null;
     const qmOf = m => m.qm == null ? 1 : m.qm;
-    const pub = m => ({qm:qmOf(m), id:m.id, t:m.t, d:m.d, s:m.s, l:m.l, e:m.e, r:m.r, g:m.g, h:m.h || ""});
+    const pub = m => ({qm:qmOf(m), desc:m.desc || "", id:m.id, t:m.t, d:m.d, s:m.s, l:m.l, e:m.e, r:m.r, g:m.g, h:m.h || ""});
     const checkins = () => ld("checkins", []);
     const slot = (m, now) => qmOf(m) ? Math.floor(now / (qmOf(m) * 60000)) : "fixed";
     const qtok = (m, s) => hmac(m.k, "Q|" + m.id + "|" + s).slice(0, 12);
@@ -849,15 +1006,26 @@ const CONFIG = {
     const counts = list => { const db = data(), rows = checkins(); return list.map(m => { const recs = rows.filter(r => r.m === m.id); const dk = new Set(invited(m, db).map(key)); return Object.assign({}, m, {n: recs.length, late: recs.filter(r => isLate(r.time, m)).length, total: db.members.filter(x => dk.has(key(x.dept))).length}); }); };
     const A = {
       meetings(d){ if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง"); return {ok:true, meetings: counts(meetings())}; },
+      updateMeeting(d){
+        if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง");
+        const list = meetings(), old = list.find(x => x.id === d.m); if(!old) return E("meeting", "ไม่พบการประชุมนี้");
+        const r = A.createMeeting(Object.assign({}, d, {dry: true})); if(!r.ok) return r;
+        Object.assign(old, r.meeting, {id: old.id, k: old.k}); sv("meetings", list);
+        sv("checkins", checkins().map(c => c.m === old.id ? Object.assign({}, c, {t: old.t}) : c));
+        return {ok:true, meetings: counts(meetings())};
+      },
       createMeeting(d){
         if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง");
         const t = norm(d.t).slice(0, 80); if(!t || !d.d) return E("input", "กรุณากรอกชื่อและวันที่");
         const qn = Number(d.qm), qm = d.qm === "" || d.qm == null || isNaN(qn) ? 1 : Math.max(0, Math.min(120, Math.round(qn)));
         if(d.s && d.e && d.e <= d.s) return E("input", "เวลาปิดสแกนต้องอยู่หลังเวลาเปิดสแกน");
         const db = data();
-        const m = {qm, id: "M" + rand(9), t, h: norm(d.h).slice(0, 60), d: d.d, s: d.s || "", l: d.l || "", e: d.e || "", r: norm(d.r).slice(0, 60), g: (d.g || []).map(x => findDept(db.departments, x)).filter(Boolean), k: rand(32)};
-        const list = meetings(); list.push(m); sv("meetings", list);
-        return {ok:true, meeting: m};
+        const m = {qm, id: "M" + rand(9), t, h: norm(d.h).slice(0, 60), d: d.d, s: d.s || "", l: d.l || "", e: d.e || "", r: norm(d.r).slice(0, 60), g: (d.g || []).map(x => findDept(db.departments, x)).filter(Boolean), k: rand(32), desc: String(d.desc || "").trim().slice(0, 1000)};
+        if(d.dry) return {ok:true, meeting: m};
+        const ds = (d.dates && d.dates.length ? d.dates : [m.d]).filter((x, i, a) => a.indexOf(x) === i).slice(0, 60);
+        const made = ds.map((x, i) => Object.assign({}, m, {d: x, id: i ? "M" + rand(9) : m.id, k: i ? rand(32) : m.k}));
+        const list = meetings(); list.push(...made); sv("meetings", list);
+        return {ok:true, meeting: made[0], count: made.length};
       },
       deleteMeeting(d){ if(d.pin !== PIN) return E("pin", "PIN ไม่ถูกต้อง"); sv("meetings", meetings().filter(x => x.id !== d.m)); return {ok:true, meetings: counts(meetings())}; },
       hostCheckin(d){
@@ -871,6 +1039,11 @@ const CONFIG = {
           if(!mem){ db.members.push({dept, name, src:"เพิ่มโดยผู้จัด"}); saveData(db); }
           all.push({time: t.toISOString(), m: m.id, t: m.t, name, dept, tid: "manual"}); sv("checkins", all);
         }
+        return A.host(d);
+      },
+      hostSetQr(d){
+        const m = findM(d.m); if(!m || d.k !== m.k) return E("key", "ลิงก์ผู้จัดไม่ถูกต้อง หรือการประชุมถูกลบแล้ว");
+        const list = meetings(); list.find(x => x.id === m.id).qm = Math.max(0, Math.min(120, Math.round(Number(d.qm) || 0))); sv("meetings", list);
         return A.host(d);
       },
       hostLeave(d){
@@ -1039,9 +1212,9 @@ const CONFIG = {
       $("fDate").value = todayStr();
       $("fOpen").value = CONFIG.DEFAULT_OPEN; $("fLate").value = CONFIG.DEFAULT_LATE; $("fClose").value = CONFIG.DEFAULT_CLOSE;
 
-      let allDepts = [];
+      let allDepts = [], members = [], allMeetings = [];
       call("admin", {op:"checkPin", pin}).then(db => {
-        allDepts = db.departments;
+        allDepts = db.departments; members = db.members || [];
         // ปุ่มเลือกตามกลุ่ม
         const gb = $("fGroups"); gb.innerHTML = "";
         const groups = (db.groups || []).filter(g => g.depts.length);
@@ -1066,6 +1239,7 @@ const CONFIG = {
           cb.onchange = () => { lab.classList.toggle("on", cb.checked); $("fGroups").querySelectorAll(".gbtn").forEach(x => x.classList.remove("on")); };
           lab.append(cb, document.createTextNode(d)); box.appendChild(lab);
         });
+        smartUpdate();
       }).catch(e => { if(e.code === "pin") relogin(); });
       const setAll = v => { $("fDepts").querySelectorAll("input").forEach(cb => { cb.checked = v; cb.parentNode.classList.toggle("on", v); }); $("fGroups").querySelectorAll(".gbtn").forEach(x => x.classList.remove("on")); };
       $("selAll").onclick = () => setAll(true);
@@ -1074,6 +1248,7 @@ const CONFIG = {
       const hostUrl = m => baseUrl + "?" + withApi(new URLSearchParams({m: m.id, k: m.k})).toString();
 
       function render(list){
+        allMeetings = list; renderCal(); fillTitles(); smartUpdate();
         const tb = $("schedBody"); tb.innerHTML = "";
         if(!list.length){ const tr = el("tr"); const td = el("td", "muted", "ยังไม่มีการประชุม สร้างรายการแรกได้จากฟอร์มด้านซ้าย"); tr.appendChild(td); tb.appendChild(tr); return; }
         const now = Date.now();
@@ -1085,7 +1260,7 @@ const CONFIG = {
           const tr = el("tr"); const td = el("td", "secthead", title); td.colSpan = 4; tr.appendChild(td); tb.appendChild(tr);
           items.forEach(m => {
             const ph = phase(m, now);
-            const tr = el("tr", ph === "past" ? "past" : "");
+            const tr = el("tr", stOf(m) === "live" ? "today" : stOf(m));
             const w = el("td", "when"); w.append(el("div", null, fmtDate(m.d)), el("div", "muted", (m.s || "–") + "–" + (m.e || "–") + " น."));
             const info = el("td");
             const tl = el("div", "t", m.t);
@@ -1097,14 +1272,10 @@ const CONFIG = {
             const acts = el("td", "acts");
             const open = el("button", "small", ph === "past" ? "ดูรายชื่อ" : "เปิด QR"); open.type = "button";
             open.onclick = () => { location.href = hostUrl(m); };
-            const cp = el("button", "ghost small", "คัดลอกลิงก์"); cp.type = "button"; cp.title = "ลิงก์หน้าผู้จัด สำหรับเปิดบนเครื่องฉาย";
-            cp.onclick = async () => { try{ await navigator.clipboard.writeText(hostUrl(m)); cp.textContent = "คัดลอกแล้ว"; }catch(e){ prompt("คัดลอกลิงก์นี้", hostUrl(m)); } setTimeout(() => cp.textContent = "คัดลอกลิงก์", 1500); };
-            const del = el("button", "danger small", "ลบ"); del.type = "button";
-            del.onclick = async () => {
-              if(!confirm("ลบการประชุม \"" + m.t + "\" ออกจากตาราง?\n(ประวัติการเช็คอินใน Google Sheet ไม่ถูกลบ)")) return;
-              try{ render((await call("deleteMeeting", {pin, m: m.id})).meetings); }catch(e){ if(e.code === "pin") relogin(); }
-            };
-            acts.append(open, cp, del);
+            const cp = copyBtn(m), del = delBtn(m);
+            const ed = el("button", "ghost small", "แก้ไข"); ed.type = "button";
+            ed.onclick = () => editMeeting(m);
+            acts.append(open, ed, cp, del);
             tr.append(w, info, att, acts); tb.appendChild(tr);
           });
         };
@@ -1119,11 +1290,233 @@ const CONFIG = {
       load();
       $("schedRefresh").onclick = load;
 
+      /* ---------- ปุ่มที่ใช้ทั้งในรายการและในหน้าต่างรายละเอียด ---------- */
+      function copyBtn(m){
+        const cp = el("button", "ghost small", "คัดลอกลิงก์"); cp.type = "button"; cp.title = "ลิงก์หน้าผู้จัด สำหรับเปิดบนเครื่องฉาย";
+        cp.onclick = async () => { try{ await navigator.clipboard.writeText(hostUrl(m)); cp.textContent = "คัดลอกแล้ว"; }catch(e){ prompt("คัดลอกลิงก์นี้", hostUrl(m)); } setTimeout(() => cp.textContent = "คัดลอกลิงก์", 1500); };
+        return cp;
+      }
+      function delBtn(m){
+        const del = el("button", "danger small", "ลบ"); del.type = "button";
+        del.onclick = async () => {
+          if(!confirm("ลบการประชุม \"" + m.t + "\" ออกจากตาราง?\n(ประวัติการเช็คอินใน Google Sheet ไม่ถูกลบ)")) return;
+          try{ closeEv(); render((await call("deleteMeeting", {pin, m: m.id})).meetings); }catch(e){ if(e.code === "pin") relogin(); }
+        };
+        return del;
+      }
+
+      /* ---------- สถานะตามวันที่: past = ผ่านไปแล้ว, today = วันนี้, live = กำลังเปิดสแกน, future = ยังไม่ถึง ---------- */
+      const addDays = (ds, n) => { const [y, mo, d] = ds.split("-").map(Number); return new Date(Date.UTC(y, mo - 1, d + n)).toISOString().slice(0, 10); };
+      const shiftYM = (ym, n) => { const [y, mo] = ym.split("-").map(Number); return new Date(Date.UTC(y, mo - 1 + n, 1)).toISOString().slice(0, 7); };
+      function stOf(m){
+        const t = todayStr(), ph = phase(m, Date.now());
+        if(m.d < t || ph === "past") return "past";
+        if(m.d === t) return ph === "open" ? "live" : "today";
+        return "future";
+      }
+
+      /* ---------- ปฏิทินรายเดือน ---------- */
+      let view = store.get("schedView", "cal"), calYM = todayStr().slice(0, 7);
+      function setView(v){
+        view = v; store.set("schedView", v);
+        show("calWrap", v === "cal"); show("schedList", v === "list");
+        $("schedTabs").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+      }
+      $("schedTabs").querySelectorAll("button").forEach(b => b.onclick = () => setView(b.dataset.v));
+      setView(view === "list" ? "list" : "cal");
+      $("calPrev").onclick = () => { calYM = shiftYM(calYM, -1); renderCal(); };
+      $("calNext").onclick = () => { calYM = shiftYM(calYM, 1); renderCal(); };
+      $("calToday").onclick = () => { calYM = todayStr().slice(0, 7); renderCal(); };
+      function renderCal(){
+        const [y, mo] = calYM.split("-").map(Number);
+        $("calTitle").textContent = new Date(Date.UTC(y, mo - 1, 1)).toLocaleDateString(LOCALE, {month: "long", year: "numeric", timeZone: "UTC"});
+        const grid = $("calGrid"); grid.innerHTML = "";
+        for(let i = 0; i < 7; i++) grid.appendChild(el("div", "wd", new Date(Date.UTC(2023, 0, 1 + i)).toLocaleDateString(LOCALE, {weekday: "short", timeZone: "UTC"})));
+        const lead = new Date(Date.UTC(y, mo - 1, 1)).getUTCDay(), days = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+        const start = addDays(calYM + "-01", -lead), cells = Math.ceil((lead + days) / 7) * 7;
+        const today = todayStr(), byDay = {};
+        allMeetings.forEach(m => (byDay[m.d] = byDay[m.d] || []).push(m));
+        for(let i = 0; i < cells; i++){
+          const ds = addDays(start, i);
+          const c = el("div", "day" + (ds.slice(0, 7) !== calYM ? " out" : "") + (ds === today ? " today" : "") + (ds < today ? " pastday" : ""));
+          c.appendChild(el("span", "dn", String(+ds.slice(8))));
+          const list = (byDay[ds] || []).sort((a, b) => (a.s || "") < (b.s || "") ? -1 : 1);
+          list.forEach((m, j) => {
+            const ev = el("div", "ev " + stOf(m) + (j >= 3 ? " x" : "")); ev.title = (m.s || "") + "–" + (m.e || "") + " " + m.t;
+            ev.append(el("i", null, m.s || ""), document.createTextNode(m.t));
+            ev.onclick = e => { e.stopPropagation(); openEv(m); };
+            c.appendChild(ev);
+          });
+          if(list.length > 3){
+            const more = el("div", "more", "+" + (list.length - 3));
+            more.onclick = e => { e.stopPropagation(); c.classList.add("expanded"); more.remove(); };
+            c.appendChild(more);
+          }
+          if(ds >= today){ c.title = "สร้างการประชุมในวันที่นี้"; c.onclick = () => newOn(ds); }
+          grid.appendChild(c);
+        }
+      }
+      // กดวันว่างในปฏิทิน -> เตรียมฟอร์มสร้างการประชุมวันนั้น
+      function newOn(ds){
+        if(editId) resetForm();
+        $("fDate").value = ds; dateTouched = true; smartUpdate();
+        $("createForm").scrollIntoView({behavior: "smooth", block: "start"}); $("fTitle").focus({preventScroll: true});
+      }
+
+      /* ---------- หน้าต่างรายละเอียดการประชุม ---------- */
+      const closeEv = () => show("evModal", false);
+      $("evClose").onclick = closeEv;
+      $("evModal").onclick = e => { if(e.target === $("evModal")) closeEv(); };
+      document.addEventListener("keydown", e => { if(e.key === "Escape") closeEv(); });
+      function openEv(m){
+        const st = stOf(m);
+        $("evTitle").textContent = m.t;
+        $("evBadge").className = "pill " + {past: "none", today: "ok", live: "live", future: "new"}[st];
+        $("evBadge").textContent = {past: "ผ่านไปแล้ว", today: "วันนี้", live: "กำลังเปิดสแกน", future: "ยังไม่ถึง"}[st];
+        const rows = $("evRows"); rows.innerHTML = "";
+        const qm = m.qm == null ? 1 : Number(m.qm);
+        [
+          ["วันที่", fmtDate(m.d)],
+          ["เวลา", (m.s || "–") + "–" + (m.e || "–")],
+          ["สายหลัง", m.l],
+          ["สถานที่", m.r],
+          ["ผู้จัด", m.h],
+          ["ส่วนงาน", m.g && m.g.length ? m.g.join(", ") : "ทุกส่วนงาน"],
+          ["QR Code", qm ? "เปลี่ยนทุก " + qm + " นาที" : "QR ไม่เปลี่ยน"],
+          ["ผู้เข้าประชุม", "มา " + (m.n || 0) + " / " + (m.total || 0) + " คน"],
+          ["มาสาย", m.late ? String(m.late) : ""],
+          ["รายละเอียด", m.desc]
+        ].filter(r => r[1]).forEach(([k, v]) => { const r = el("div", "r"); r.append(el("div", "k", k), el("div", "v", v)); rows.appendChild(r); });
+        const acts = $("evActs"); acts.innerHTML = "";
+        const open = el("button", "small", st === "past" ? "ดูรายชื่อ" : "เปิด QR"); open.type = "button";
+        open.onclick = () => { location.href = hostUrl(m); };
+        const ed = el("button", "ghost small", "แก้ไข"); ed.type = "button";
+        ed.onclick = () => { closeEv(); editMeeting(m); };
+        const dup = el("button", "ghost small", "สร้างซ้ำสัปดาห์หน้า"); dup.type = "button";
+        dup.onclick = () => dupNext(m, dup);
+        acts.append(open, ed, dup, copyBtn(m), delBtn(m));
+        show("evModal", true);
+      }
+      // สร้างการประชุมเดิมในสัปดาห์ถัดไป (ถัดจากวันนี้) กดครั้งเดียว
+      async function dupNext(m, btn){
+        let nd = addDays(m.d, 7);
+        while(nd < todayStr()) nd = addDays(nd, 7);
+        if(allMeetings.some(x => x.d === nd && key(x.t) === key(m.t))){ alert(tr("มีการประชุมนี้ในวันที่ " + nd + " อยู่แล้ว")); return; }
+        btn.disabled = true;
+        try{
+          await call("createMeeting", {pin, t: m.t, h: m.h || "", d: nd, s: m.s, l: m.l, e: m.e, r: m.r || "", g: m.g || [], qm: m.qm == null ? 1 : m.qm, desc: m.desc || ""});
+          closeEv(); calYM = nd.slice(0, 7); await load();
+        }catch(e){ if(e.code === "pin") relogin(); else alert(tr(e.message)); }
+        btn.disabled = false;
+      }
+
+      /* ---------- ฟอร์มอัจฉริยะ ---------- */
+      let dateTouched = false;
+      $("fDate").addEventListener("input", () => { dateTouched = true; });
+      // รายชื่อการประชุมเดิมให้เลือกตอนพิมพ์ชื่อ
+      function fillTitles(){
+        const dl = $("fTitleList"); dl.innerHTML = ""; const seen = new Set();
+        allMeetings.slice().sort((a, b) => a.d < b.d ? 1 : -1).forEach(m => {
+          if(seen.has(key(m.t))) return; seen.add(key(m.t));
+          const o = el("option"); o.value = m.t; dl.appendChild(o);
+        });
+      }
+      // พิมพ์/เลือกชื่อที่เคยใช้ -> เติมค่าจากครั้งล่าสุด และเสนอวันถัดไปตามรอบสัปดาห์
+      $("fTitle").addEventListener("change", () => {
+        if(editId) return;
+        const src = allMeetings.filter(m => key(m.t) === key($("fTitle").value)).sort((a, b) => a.d < b.d ? 1 : -1)[0];
+        if(!src){ show("fTplHint", false); return; }
+        fillFrom(src);
+        if(!dateTouched){ let nd = addDays(src.d, 7); while(nd < todayStr()) nd = addDays(nd, 7); $("fDate").value = nd; }
+        $("fTplHint").textContent = "เติมข้อมูลจากการประชุมชื่อเดียวกันครั้งล่าสุด (" + fmtDate(src.d) + ") ให้แล้ว แก้ไขได้";
+        show("fTplHint", true); smartUpdate();
+      });
+      // ทำซ้ำ: คืนรายการวันที่ที่จะสร้าง
+      function repeatDates(){
+        const d0 = $("fDate").value, mode = $("fRepeat").value, until = $("fUntil").value;
+        if(!d0) return [];
+        if(editId || !mode || !until || until < d0) return [d0];
+        const out = [];
+        if(mode === "m"){
+          const [y, mo, d] = d0.split("-").map(Number);
+          for(let i = 0; out.length < 60 && i < 120; i++){
+            const x = new Date(Date.UTC(y, mo - 1 + i, d)); if(x.getUTCDate() !== d) continue;
+            const ds = x.toISOString().slice(0, 10); if(ds > until) break; out.push(ds);
+          }
+        }else for(let ds = d0; ds <= until && out.length < 60; ds = addDays(ds, +mode)) out.push(ds);
+        return out;
+      }
+      $("fRepeat").onchange = () => {
+        const mode = $("fRepeat").value;
+        show("fUntil", !!mode);
+        if(mode && $("fDate").value && (!$("fUntil").value || $("fUntil").value <= $("fDate").value))
+          $("fUntil").value = mode === "m" ? addDays($("fDate").value, 89) : addDays($("fDate").value, mode === "7" ? 28 : 56);
+        smartUpdate();
+      };
+      // การประชุมอื่นที่ช่วงเวลาซ้อนกัน (room = ห้องเดียวกัน)
+      function clashes(dates){
+        const s = $("fOpen").value, e = $("fClose").value, room = key($("fRoom").value), ds = new Set(dates);
+        if(!s || !e) return [];
+        return allMeetings.filter(m => m.id !== editId && ds.has(m.d) && m.s && m.e && m.s < e && s < m.e)
+          .map(m => ({m, room: !!room && key(m.r) === room}));
+      }
+      function smartUpdate(){
+        // จำนวนผู้ต้องเข้าประชุม
+        const picked = [...$("fDepts").querySelectorAll("input:checked")].map(cb => key(cb.value)), ps = new Set(picked);
+        $("fPeople").textContent = picked.length ? "ผู้ต้องเข้าประชุม " + members.filter(x => ps.has(key(x.dept))).length + " คน จาก " + picked.length + " ส่วนงาน" : "";
+        // ทำซ้ำ
+        show("fRepeatRow", !editId);
+        const dates = repeatDates();
+        show("fRepeatHint", dates.length > 1);
+        if(dates.length > 1) $("fRepeatHint").textContent = "จะสร้าง " + dates.length + " การประชุม (" + fmtDate(dates[0]) + " – " + fmtDate(dates[dates.length - 1]) + ")";
+        // เวลาว่าง/ชนกัน
+        const box = $("fAvail"); box.innerHTML = "";
+        if(!dates.length || !$("fOpen").value || !$("fClose").value){ show("fAvail", false); return; }
+        const c = clashes(dates), roomHit = c.some(x => x.room);
+        box.className = "avail " + (roomHit ? "bad" : c.length ? "warn" : "ok");
+        if(!c.length) box.textContent = "✓ เวลานี้ว่าง ไม่มีการประชุมอื่นชนเวลา";
+        else{
+          box.appendChild(el("div", "ah", roomHit ? "⚠ ห้องนี้มีการประชุมอื่นในเวลาเดียวกัน" : "มีการประชุมอื่นในช่วงเวลาเดียวกัน"));
+          c.slice(0, 4).forEach(x => box.appendChild(el("div", null, fmtDate(x.m.d) + " " + x.m.s + "–" + x.m.e + " · " + x.m.t + (x.m.r ? " · " + x.m.r : ""))));
+        }
+      }
+      ["input", "change"].forEach(t => $("createForm").addEventListener(t, () => smartUpdate()));
+      $("createForm").addEventListener("click", () => setTimeout(smartUpdate));
+
       $("fQrMode").onchange = () => {
         const fixed = $("fQrMode").value === "fixed";
         show("fQrMin", !fixed);
         $("fQrHint").textContent = fixed ? "QR ไม่เปลี่ยน แสดงได้ตั้งแต่สร้างการประชุม แต่สแกนเช็คอินได้เฉพาะช่วงเวลาเปิด–ปิดสแกน (ใครมีลิงก์หรือรูป QR ก็สแกนได้)" : "QR เปลี่ยนใหม่ตามนาทีที่ตั้ง ส่งลิงก์หรือถ่ายรูป QR ไปเช็คอินนอกห้องไม่ได้";
       };
+      // ---- แก้ไขการประชุม: ใช้ฟอร์มเดียวกับสร้าง ----
+      let editId = "";
+      const setQrMode = qm => { $("fQrMode").value = qm === 0 ? "fixed" : "rot"; $("fQrMin").value = qm || 1; $("fQrMode").onchange(); };
+      function editMeeting(m){
+        editId = m.id;
+        $("fHead").textContent = "แก้ไขการประชุม"; $("fSubmit").textContent = "บันทึกการแก้ไข"; show("fCancel", true);
+        $("fTitle").value = m.t; $("fDate").value = m.d; show("fTplHint", false);
+        fillFrom(m);
+        show("fErr", false); smartUpdate();
+        $("createForm").scrollIntoView({behavior: "smooth", block: "start"}); $("fTitle").focus({preventScroll: true});
+      }
+      function fillFrom(m){
+        $("fHost").value = m.h || ""; $("fRoom").value = m.r || ""; $("fDesc").value = m.desc || "";
+        $("fOpen").value = m.s || ""; $("fLate").value = m.l || ""; $("fClose").value = m.e || "";
+        setQrMode(m.qm == null ? 1 : Number(m.qm));
+        const want = new Set((m.g || []).map(key));
+        $("fDepts").querySelectorAll("input").forEach(cb => { cb.checked = !want.size || want.has(key(cb.value)); cb.parentNode.classList.toggle("on", cb.checked); });
+        $("fGroups").querySelectorAll(".gbtn").forEach(x => x.classList.remove("on"));
+      }
+      function resetForm(){
+        editId = "";
+        $("fHead").textContent = "สร้างการประชุม"; $("fSubmit").textContent = "สร้างการประชุม"; show("fCancel", false);
+        $("fTitle").value = ""; $("fHost").value = ""; $("fRoom").value = ""; $("fDesc").value = ""; $("fDate").value = todayStr();
+        $("fRepeat").value = ""; $("fUntil").value = ""; show("fUntil", false); show("fTplHint", false); dateTouched = false;
+        $("fOpen").value = CONFIG.DEFAULT_OPEN; $("fLate").value = CONFIG.DEFAULT_LATE; $("fClose").value = CONFIG.DEFAULT_CLOSE;
+        setQrMode(1); setAll(true); show("fErr", false); smartUpdate();
+      }
+      $("fCancel").onclick = resetForm;
+
       $("createForm").onsubmit = async ev => {
         ev.preventDefault();
         show("fErr", false);
@@ -1134,13 +1527,16 @@ const CONFIG = {
         const s = $("fOpen").value, l = $("fLate").value, e = $("fClose").value;
         if(e <= s) return fail("เวลาปิดสแกนต้องอยู่หลังเวลาเปิดสแกน");
         if(l && (l < s || l > e)) return fail("เวลา \"สายหลัง\" ต้องอยู่ระหว่างเวลาเปิดและปิดสแกน");
+        const dates = repeatDates();
+        if(clashes(dates).some(x => x.room) && !confirm("ห้องนี้มีการประชุมอื่นในเวลาเดียวกัน ต้องการบันทึกต่อหรือไม่?")) return;
         $("fSubmit").disabled = true;
         try{
-          await call("createMeeting", {pin, t: $("fTitle").value, h: $("fHost").value, d: $("fDate").value, s, l, e, r: $("fRoom").value,
+          const r = await call(editId ? "updateMeeting" : "createMeeting", {pin, m: editId, t: $("fTitle").value, h: $("fHost").value, d: $("fDate").value, s, l, e, r: $("fRoom").value,
+            desc: $("fDesc").value, dates: editId ? [] : dates,
             qm: $("fQrMode").value === "fixed" ? 0 : Math.max(1, Math.min(120, Math.round(Number($("fQrMin").value) || 1))),
             g: picked.length === boxes.length ? [] : picked});   // เลือกครบ = ทุกส่วนงาน (รวมที่เพิ่มภายหลัง)
-          $("fTitle").value = ""; $("fRoom").value = "";
-          await load();
+          if(editId){ resetForm(); render(r.meetings); }
+          else{ calYM = (dates[0] || todayStr()).slice(0, 7); resetForm(); await load(); }
         }catch(err){ if(err.code === "pin") relogin(); else fail(err.message); }
         $("fSubmit").disabled = false;
       };
@@ -1383,7 +1779,7 @@ const CONFIG = {
       if(!real.length) return;
       const covered = real.filter(g => g.rows.some(x => x.r)).length;
       const head = el("div", "sumhead");
-      head.append(el("b", null, "ส่วนงานที่มาแล้ว " + covered + " / " + real.length), el("span", "muted", "เขียว = มาแล้ว · แดง = มาสาย/ยังไม่มาหลัง " + (m.l || "เวลาสาย") + " น. · กดที่กล่องเพื่อดูรายชื่อ"));
+      head.append(el("b", null, "ส่วนงานที่มาแล้ว " + covered + " / " + real.length), el("span", "muted", "เขียว = มาแล้ว · แดง = มาสาย/ยังไม่มาหลัง " + (m.l || "เวลาสาย") + " น. · กดที่กล่องเพื่อดูรายชื่อ"), el("span", "muted", "· ฟ้า = ลาทั้งหมด"));
       box.appendChild(head);
       const grid = el("div", "sumgrid");
       const pastLate = !!(m.d && m.l) && Date.now() > at(m.d, m.l);
@@ -1391,17 +1787,20 @@ const CONFIG = {
         const came = g.rows.filter(x => x.r).sort((a, b) => new Date(a.r.time) - new Date(b.r.time));
         // เขียว = คนแรกของส่วนงานมาทันเวลา, แดง = มาสาย หรือเลยเวลาสายแล้วยังไม่มีใครมา, เทา = ยังไม่ถึงเวลาสาย
         const firstLate = came.length && isLate(came[0].r.time, m);
-        const state = came.length ? (firstLate ? "late" : "on") : (pastLate && g.rows.length ? "late" : "");
+        const allLeave = !came.length && g.rows.length > 0 && g.rows.every(x => x.leave);   // ลาทั้งส่วนงาน = ฟ้า
+        const state = came.length ? (firstLate ? "late" : "on") : allLeave ? "leave" : (pastLate && g.rows.length ? "late" : "");
         const t = el("button", "tile" + (state ? " " + state : "") + (g.rows.length || came.length ? "" : " empty")); t.type = "button";
         t.appendChild(el("div", "dn", g.dept));
         const ct = el("div", "ct"); ct.append(String(came.length)); ct.appendChild(el("small", null, " คน"));
         if(state === "late") ct.appendChild(el("span", "st", came.length ? "มาสาย" : "ยังไม่มา"));
         else if(state === "on") ct.appendChild(el("span", "st", "มาแล้ว"));
+        else if(state === "leave") ct.appendChild(el("span", "st", "ลาทั้งหมด"));
         t.appendChild(ct);
         const who = el("div", "who");
         came.slice(0, 4).forEach(x => { const sp = el("span"); sp.append((isLate(x.r.time, m) ? "⏰ " : "") + x.name); const p = posOf(x.dept, x.name); if(p){ sp.append(" "); sp.appendChild(el("i", null, "· " + p)); } who.appendChild(sp); });
         if(came.length > 4) who.appendChild(el("span", "muted", "+ อีก " + (came.length - 4) + " คน"));
-        if(!came.length) who.appendChild(el("span", "muted", g.rows.length ? (state === "late" ? "เลยเวลา " + m.l + " น. แล้ว" : "ยังไม่มีคนมา") : "ยังไม่มีรายชื่อ"));
+        if(allLeave) g.rows.slice(0, 4).forEach(x => who.appendChild(el("span", null, x.name)));
+        else if(!came.length) who.appendChild(el("span", "muted", g.rows.length ? (state === "late" ? "เลยเวลา " + m.l + " น. แล้ว" : "ยังไม่มีคนมา") : "ยังไม่มีรายชื่อ"));
         t.appendChild(who);
         if(g.rows.length) t.onclick = () => { $("dFilter").value = "all"; render(); const sec = document.getElementById(secId(g.dept)); if(sec) sec.scrollIntoView({behavior: "smooth"}); };
         grid.appendChild(t);
@@ -1494,6 +1893,7 @@ const CONFIG = {
         closed = j.closed; fixed = !!j.fixed; qrSec = j.qrSeconds;
         deadline = fixed ? 0 : Date.now() + j.msLeft;
         show("dQrWrap", !noQr()); show("dClosed", !!closed); $("dClosed").textContent = closed || "";
+        show("dFixBtn", !!closed && !fixed && closed.startsWith("ยังไม่"));
         show("pQr", !noQr()); show("pClosed", !!closed); $("pClosed").textContent = closed || "";
         document.querySelector("#present .countdown").classList.toggle("hidden", noQr() || fixed);
         document.querySelector("#dQrWrap .countdown").classList.toggle("hidden", fixed);
@@ -1527,10 +1927,17 @@ const CONFIG = {
     refresh();
 
     $("refreshBtn").onclick = refresh;
+    $("dFixBtn").onclick = async () => {
+      if(!confirm("เปลี่ยนการประชุมนี้เป็น QR ไม่เปลี่ยน เพื่อแสดง QR ได้ตั้งแต่ตอนนี้?\n(สแกนเช็คอินได้เมื่อถึงเวลาเปิดสแกนเท่านั้น)")) return;
+      $("dFixBtn").disabled = true;
+      try{ await call("hostSetQr", {m: mid, k: hk, qm: 0}); await refresh(); }
+      catch(e){ $("dErr").textContent = e.message; show("dErr", true); }
+      $("dFixBtn").disabled = false;
+    };
     $("dFilter").onchange = render;
-    document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+    document.querySelectorAll("#viewDash .tabs button").forEach(b => b.onclick = () => {
       tab = b.dataset.tab;
-      document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
+      document.querySelectorAll("#viewDash .tabs button").forEach(x => x.classList.toggle("on", x === b));
       show("dCheck", tab === "check"); show("dTime", tab === "time"); show("dFilter", tab === "check");
     });
     $("presentBtn").onclick = () => show("present", true);
